@@ -1,0 +1,24 @@
+# Entorno virtual
+venv/
+__pycache__/
+*.pyc
+
+# Datasets (imágenes)
+datasets/
+*.jpg
+*.png
+*.jpeg
+
+# Modelos (son pesados)
+modelos_guardados/*.h5
+modelos_guardados/*.keras
+
+# Archivos temporales
+*.log
+.DS_Store
+.vscode/
+.vs/
+
+# Archivos de caché
+.ipynb_checkpoints/
+.pytest_cache/
