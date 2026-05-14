@@ -1,6 +1,6 @@
 # src/api/servidor.py
 from flask import Flask, request, jsonify
-from bd.conexion import Database
+from src.bd.conexion import Database
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
 import numpy as np
