@@ -1,20 +1,80 @@
-# api.py - Servidor API para Arduino (con interfaz web)
-from flask import Flask, request, jsonify, render_template  # ← AGREGADO render_template
+# api.py - Servidor API para Arduino (con interfaz web y sensor infrarrojo)
+from flask import Flask, request, jsonify, render_template
 import psycopg2
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
 import numpy as np
 import os
+import serial
+import threading
+import time
+import requests
 
 app = Flask(__name__)
 
-# ========== NUEVA RUTA PARA LA PÁGINA WEB ==========
+# ========== CONFIGURACIÓN DEL PUERTO SERIAL PARA ARDUINO ==========
+# ⚠️ CAMBIA 'COM3' por el puerto donde está conectado tu Arduino
+PUERTO_ARDUINO = 'COM3'  # Ejemplos: 'COM4', 'COM5', '/dev/ttyUSB0' en Linux
+VELOCIDAD_ARDUINO = 9600
+USUARIO_POR_DEFECTO = 1  # ID del usuario que recicla
+TIPO_POR_DEFECTO = 'plastic'  # 'plastic', 'glass' o 'metal'
+
+# ========== FUNCIÓN PARA LEER EL ARDUINO EN SEGUNDO PLANO ==========
+def leer_arduino():
+    """
+    Esta función se ejecuta en un hilo separado.
+    Escucha el puerto serial y cuando recibe 'BOTELLA_DETECTADA'
+    envía una petición a la API de Flask para registrar el reciclaje.
+    """
+    try:
+        arduino = serial.Serial(PUERTO_ARDUINO, VELOCIDAD_ARDUINO, timeout=1)
+        time.sleep(2)
+        print(f"✅ Conectado a Arduino en {PUERTO_ARDUINO}")
+        print("📡 Escuchando al sensor infrarrojo...")
+
+        while True:
+            if arduino.in_waiting > 0:
+                linea = arduino.readline().decode('utf-8').strip()
+                print(f"📨 Mensaje recibido: {linea}")
+                
+                if linea == "BOTELLA_DETECTADA":
+                    print("🔴 ¡Botella detectada por sensor infrarrojo!")
+                    
+                    datos_reciclaje = {
+                        "usuario_id": USUARIO_POR_DEFECTO,
+                        "tipo": TIPO_POR_DEFECTO,
+                        "confianza": 99.9
+                    }
+                    
+                    try:
+                        response = requests.post('http://127.0.0.1:5000/reciclar', json=datos_reciclaje)
+                        if response.status_code == 200:
+                            data = response.json()
+                            print(f"✅ Reciclaje registrado exitosamente!")
+                            print(f"   📦 Tipo: {data.get('tipo', TIPO_POR_DEFECTO)}")
+                            print(f"   ⭐ Puntos ganados: {data.get('puntos_ganados', 0)}")
+                            print(f"   🏆 Total acumulado: {data.get('puntos_totales', 0)}")
+                        else:
+                            print(f"❌ Error al registrar reciclaje: {response.status_code}")
+                    except requests.exceptions.ConnectionError:
+                        print("❌ Error: No se pudo conectar al servidor Flask")
+                    except Exception as e:
+                        print(f"❌ Error inesperado: {e}")
+            
+            time.sleep(0.1)
+
+    except serial.SerialException:
+        print(f"❌ No se pudo conectar al Arduino en el puerto {PUERTO_ARDUINO}")
+        print("   Verifica la conexión y el puerto")
+    except Exception as e:
+        print(f"❌ Error inesperado: {e}")
+
+# ========== RUTA PARA LA PÁGINA WEB ==========
 @app.route('/')
 def index():
-    """Página principal con la interfaz web"""
     return render_template('index.html')
 
-# ========== CONFIGURACIÓN ==========
+# ========== CONFIGURACIÓN DE BASE DE DATOS ==========
 DB_CONFIG = {
     'host': 'localhost',
     'database': 'reciclaje_ia',
@@ -24,10 +84,15 @@ DB_CONFIG = {
 }
 
 # Cargar modelo entrenado
-modelo = tf.keras.models.load_model('modelos_guardados/clasificador_botellas.h5')
+try:
+    modelo = tf.keras.models.load_model('modelos_guardados/clasificador_botellas.h5')
+    print("✅ Modelo de IA cargado correctamente")
+except Exception as e:
+    print(f"⚠️ No se pudo cargar el modelo: {e}")
+    modelo = None
+
 CLASSES = ['glass', 'metal', 'plastic']
 
-# Mapeo de clases en inglés a español
 MAPEO = {
     'glass': 'vidrio',
     'metal': 'lata',
@@ -35,14 +100,12 @@ MAPEO = {
 }
 
 def get_db_connection():
-    """Retorna una conexión a la base de datos"""
     return psycopg2.connect(**DB_CONFIG)
 
 # ========== ENDPOINTS PARA ARDUINO ==========
 
 @app.route('/reciclar', methods=['POST'])
 def registrar_reciclaje():
-    """Endpoint para que Arduino registre un reciclaje"""
     try:
         datos = request.get_json()
         usuario_id = datos.get('usuario_id')
@@ -83,7 +146,8 @@ def registrar_reciclaje():
             'status': 'ok',
             'mensaje': f'Ganaste {puntos} puntos',
             'puntos_ganados': puntos,
-            'puntos_totales': nuevos_puntos
+            'puntos_totales': nuevos_puntos,
+            'tipo': tipo_es
         }), 200
         
     except Exception as e:
@@ -126,11 +190,10 @@ def crear_usuario():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ========== NUEVOS ENDPOINTS PARA LA INTERFAZ WEB ==========
+# ========== ENDPOINTS PARA LA INTERFAZ WEB ==========
 
 @app.route('/ranking', methods=['GET'])
 def ranking():
-    """Obtiene el top 10 de usuarios con más puntos"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -150,7 +213,6 @@ def ranking():
 
 @app.route('/estadisticas/<int:usuario_id>', methods=['GET'])
 def estadisticas_usuario(usuario_id):
-    """Obtiene estadísticas de un usuario específico"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -183,6 +245,102 @@ def estadisticas_usuario(usuario_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ========== ENDPOINTS PARA ELIMINAR USUARIOS ==========
+
+@app.route('/eliminar_usuario/<int:usuario_id>', methods=['DELETE'])
+def eliminar_usuario(usuario_id):
+    """Elimina un usuario y todos sus registros de reciclaje"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT id, nombre FROM usuarios WHERE id = %s", (usuario_id,))
+        usuario = cursor.fetchone()
+        
+        if not usuario:
+            conn.close()
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        nombre_usuario = usuario[1]
+        
+        cursor.execute("DELETE FROM registros_reciclaje WHERE id_usuario = %s", (usuario_id,))
+        cursor.execute("DELETE FROM usuarios WHERE id = %s", (usuario_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'status': 'ok',
+            'mensaje': f'Usuario "{nombre_usuario}" (ID: {usuario_id}) eliminado correctamente'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/eliminar_todos_usuarios', methods=['DELETE'])
+def eliminar_todos_usuarios():
+    """Elimina todos los usuarios y todos los registros de reciclaje"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT COUNT(*) FROM usuarios")
+        total_usuarios = cursor.fetchone()[0]
+        
+        if total_usuarios == 0:
+            conn.close()
+            return jsonify({
+                'status': 'ok',
+                'mensaje': 'No hay usuarios para eliminar'
+            }), 200
+        
+        cursor.execute("DELETE FROM registros_reciclaje")
+        cursor.execute("DELETE FROM usuarios")
+        
+        cursor.execute("ALTER SEQUENCE usuarios_id_seq RESTART WITH 1")
+        cursor.execute("ALTER SEQUENCE registros_reciclaje_id_seq RESTART WITH 1")
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'status': 'ok',
+            'mensaje': f'Se eliminaron {total_usuarios} usuarios y todos sus reciclajes'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/configurar_sensor', methods=['POST'])
+def configurar_sensor():
+    try:
+        datos = request.get_json()
+        global USUARIO_POR_DEFECTO, TIPO_POR_DEFECTO
+        
+        if 'usuario_id' in datos:
+            USUARIO_POR_DEFECTO = datos['usuario_id']
+        if 'tipo' in datos and datos['tipo'] in ['plastic', 'glass', 'metal']:
+            TIPO_POR_DEFECTO = datos['tipo']
+        
+        return jsonify({
+            'status': 'ok',
+            'mensaje': 'Configuración actualizada',
+            'usuario_id': USUARIO_POR_DEFECTO,
+            'tipo': TIPO_POR_DEFECTO
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/estado_sensor', methods=['GET'])
+def estado_sensor():
+    return jsonify({
+        'conectado': True,
+        'usuario_id': USUARIO_POR_DEFECTO,
+        'tipo': TIPO_POR_DEFECTO,
+        'tipo_nombre': MAPEO.get(TIPO_POR_DEFECTO, TIPO_POR_DEFECTO)
+    }), 200
+
+# ========== INICIO DEL SERVIDOR ==========
 if __name__ == '__main__':
     print("=" * 50)
     print("🌐 SERVIDOR API PARA ARDUINO")
@@ -194,7 +352,20 @@ if __name__ == '__main__':
     print("   POST /crear_usuario    - Crear usuario")
     print("   GET  /ranking          - Top 10 usuarios")
     print("   GET  /estadisticas/<id> - Estadísticas")
+    print("   DELETE /eliminar_usuario/<id> - Eliminar usuario")
+    print("   DELETE /eliminar_todos_usuarios - Eliminar todos")
+    print("   POST /configurar_sensor - Configurar sensor")
+    print("   GET  /estado_sensor    - Estado del sensor")
+    print("\n🔌 Configuración del sensor infrarrojo:")
+    print(f"   Puerto Arduino: {PUERTO_ARDUINO}")
+    print(f"   Usuario por defecto: {USUARIO_POR_DEFECTO}")
+    print(f"   Tipo por defecto: {TIPO_POR_DEFECTO} ({MAPEO.get(TIPO_POR_DEFECTO, TIPO_POR_DEFECTO)})")
     print("\n🚀 Servidor en http://127.0.0.1:5000")
     print("🌍 Interfaz web en http://127.0.0.1:5000")
     print("=" * 50)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    print("\n📡 Iniciando comunicación con Arduino...")
+    
+    hilo_arduino = threading.Thread(target=leer_arduino, daemon=True)
+    hilo_arduino.start()
+    
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)

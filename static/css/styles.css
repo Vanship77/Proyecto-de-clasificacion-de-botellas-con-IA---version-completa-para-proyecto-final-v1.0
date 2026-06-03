@@ -673,6 +673,72 @@ body:not(.light-mode) .progress-bar-mini {
     100% { transform: rotate(360deg); }
 }
 
+/* Estilos para botones de eliminar */
+.btn-eliminar {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: transform 0.3s, box-shadow 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-eliminar:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+}
+
+.btn-eliminar-todos {
+    background: linear-gradient(135deg, #c0392b, #a93226);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: transform 0.3s, box-shadow 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+}
+
+.btn-eliminar-todos:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(192, 57, 43, 0.4);
+}
+
+.eliminar-usuario .form-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.eliminar-usuario .input-group {
+    flex: 2;
+    min-width: 200px;
+}
+
+@media (max-width: 768px) {
+    .eliminar-usuario .form-row {
+        flex-direction: column;
+    }
+    
+    .btn-eliminar {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .stats-header {

@@ -437,3 +437,118 @@ cargarRanking();
 cargarEstadisticas();
 cargarStatsHeader();
 cargarListaUsuarios();
+
+// ========== FUNCIONES PARA ELIMINAR USUARIOS ==========
+
+// Eliminar un usuario específico
+async function eliminarUsuario() {
+    const usuarioId = document.getElementById('eliminar_usuario_id').value;
+    const mensajeDiv = document.getElementById('mensaje_eliminar');
+    
+    if (!usuarioId) {
+        mensajeDiv.innerHTML = '<p style="color: #e74c3c;"><i class="fas fa-times-circle"></i> Ingresa un ID de usuario</p>';
+        return;
+    }
+    
+    // Confirmar antes de eliminar
+    const confirmar = confirm(`⚠️ ¿Estás seguro de eliminar al usuario ID ${usuarioId}?\n\nSe eliminarán TODOS sus reciclajes y puntos. Esta acción no se puede deshacer.`);
+    
+    if (!confirmar) return;
+    
+    try {
+        const response = await fetch(`/eliminar_usuario/${usuarioId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'ok') {
+            mensajeDiv.innerHTML = `<p style="color: #2ecc71;"><i class="fas fa-check-circle"></i> ${data.mensaje}</p>`;
+            document.getElementById('eliminar_usuario_id').value = '';
+            // Actualizar todo
+            cargarRanking();
+            cargarEstadisticas();
+            cargarStatsHeader();
+            cargarListaUsuarios();
+            // Si el usuario eliminado era el actual, limpiar estadísticas
+            if (parseInt(usuarioId) === parseInt(document.getElementById('usuario_id').value)) {
+                document.getElementById('estadisticas').innerHTML = `
+                    <div class="stat-detail-card" style="grid-column: 1/-1; text-align: center;">
+                        <i class="fas fa-user-slash"></i>
+                        <div class="stat-label">USUARIO ELIMINADO</div>
+                        <div class="stat-number" style="font-size: 14px;">El usuario ya no existe</div>
+                    </div>
+                `;
+            }
+            mostrarNotificacion(data.mensaje, 'success');
+        } else {
+            mensajeDiv.innerHTML = `<p style="color: #e74c3c;">❌ Error: ${data.error}</p>`;
+            mostrarNotificacion(data.error, 'error');
+        }
+    } catch (error) {
+        mensajeDiv.innerHTML = `<p style="color: #e74c3c;">❌ Error al eliminar usuario</p>`;
+        mostrarNotificacion('Error al eliminar usuario', 'error');
+    }
+    
+    // Limpiar mensaje después de 5 segundos
+    setTimeout(() => {
+        if (mensajeDiv.innerHTML !== '') {
+            mensajeDiv.innerHTML = '';
+        }
+    }, 5000);
+}
+
+// Eliminar todos los usuarios
+async function eliminarTodosUsuarios() {
+    const mensajeDiv = document.getElementById('mensaje_eliminar');
+    
+    // Confirmación más estricta
+    const confirmar = confirm(`⚠️⚠️⚠️ ¡ADVERTENCIA! ⚠️⚠️⚠️\n\nEstás a punto de ELIMINAR TODOS los usuarios y TODOS sus reciclajes.\n\nEsta acción NO SE PUEDE DESHACER.\n\n¿Estás ABSOLUTAMENTE SEGURO?`);
+    
+    if (!confirmar) return;
+    
+    // Segunda confirmación
+    const confirmar2 = confirm(`ÚLTIMA OPORTUNIDAD\n\n¿Realmente quieres eliminar TODOS los usuarios?\n\nSe perderán todos los puntos y reciclajes.`);
+    
+    if (!confirmar2) return;
+    
+    try {
+        const response = await fetch('/eliminar_todos_usuarios', {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'ok') {
+            mensajeDiv.innerHTML = `<p style="color: #2ecc71;"><i class="fas fa-check-circle"></i> ${data.mensaje}</p>`;
+            // Actualizar todo
+            cargarRanking();
+            cargarEstadisticas();
+            cargarStatsHeader();
+            cargarListaUsuarios();
+            // Limpiar ID actual
+            document.getElementById('usuario_id').value = '1';
+            document.getElementById('estadisticas').innerHTML = `
+                <div class="stat-detail-card" style="grid-column: 1/-1; text-align: center;">
+                    <i class="fas fa-database"></i>
+                    <div class="stat-label">BASE DE DATOS VACÍA</div>
+                    <div class="stat-number" style="font-size: 14px;">Crea un nuevo usuario</div>
+                </div>
+            `;
+            mostrarNotificacion(data.mensaje, 'success');
+        } else {
+            mensajeDiv.innerHTML = `<p style="color: #e74c3c;">❌ Error: ${data.error}</p>`;
+            mostrarNotificacion(data.error, 'error');
+        }
+    } catch (error) {
+        mensajeDiv.innerHTML = `<p style="color: #e74c3c;">❌ Error al eliminar usuarios</p>`;
+        mostrarNotificacion('Error al eliminar usuarios', 'error');
+    }
+    
+    // Limpiar mensaje después de 5 segundos
+    setTimeout(() => {
+        if (mensajeDiv.innerHTML !== '') {
+            mensajeDiv.innerHTML = '';
+        }
+    }, 5000);
+}

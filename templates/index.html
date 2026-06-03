@@ -62,6 +62,8 @@
         </div>
     </div>
 
+           
+
         <!-- Tarjeta principal con formulario de reciclaje -->
         <div class="card glass-card">
             <div class="header">
@@ -144,6 +146,26 @@
                     <div class="skeleton-loader"></div>
                 </div>
             </div>
+        </div>
+
+         <!-- Sección: Eliminar usuarios -->
+        <div class="tabla-container eliminar-usuario">
+            <h3><i class="fas fa-trash-alt"></i> Eliminar Usuarios</h3>
+            <div class="form-row">
+                <div class="input-group">
+                    <i class="fas fa-id-card input-icon"></i>
+                    <input type="number" id="eliminar_usuario_id" placeholder="ID del usuario a eliminar">
+                </div>
+                <button class="btn-eliminar" onclick="eliminarUsuario()">
+                    <i class="fas fa-trash-alt"></i> ELIMINAR USUARIO
+                </button>
+            </div>
+            <div class="form-row" style="margin-top: 15px;">
+                <button class="btn-eliminar-todos" onclick="eliminarTodosUsuarios()">
+                    <i class="fas fa-skull-crosswalk"></i> ELIMINAR TODOS LOS USUARIOS
+                </button>
+            </div>
+            <div id="mensaje_eliminar" class="mensaje-usuario"></div>
         </div>
 
 
