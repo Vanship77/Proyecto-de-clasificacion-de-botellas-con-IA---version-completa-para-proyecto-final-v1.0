@@ -498,6 +498,197 @@ async function eliminarUsuario() {
     }, 5000);
 }
 
+// ========== FUNCIONES PARA EL SENSOR INFRARROJO Y CÁMARA ==========
+
+// Variables globales
+let streamCamara = null;
+let detecciones = [];
+
+// Cargar estado del sensor
+async function cargarEstadoSensor() {
+    try {
+        const response = await fetch('/estado_sensor');
+        const data = await response.json();
+        
+        if (response.ok) {
+            document.getElementById('sensorUsuario').textContent = data.usuario_id;
+            
+            const led = document.getElementById('sensorLed');
+            const estadoText = document.getElementById('sensorEstado');
+            
+            if (data.conectado) {
+                led.className = 'led led-green';
+                estadoText.textContent = 'Conectado';
+                estadoText.style.color = '#2ecc71';
+            } else {
+                led.className = 'led led-red';
+                estadoText.textContent = 'Desconectado';
+                estadoText.style.color = '#e74c3c';
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando estado del sensor:', error);
+    }
+}
+
+// Activar cámara web
+async function activarCamara() {
+    const video = document.getElementById('videoCamara');
+    const preview = document.getElementById('camaraPreview');
+    const btnActivar = document.getElementById('btnActivarCamara');
+    const btnTomar = document.getElementById('btnTomarFoto');
+    
+    try {
+        streamCamara = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = streamCamara;
+        preview.style.display = 'block';
+        btnActivar.style.display = 'none';
+        btnTomar.style.display = 'flex';
+        document.getElementById('camaraEstado').textContent = 'Activa';
+        mostrarNotificacion('Cámara activada correctamente', 'success');
+    } catch (error) {
+        console.error('Error al acceder a la cámara:', error);
+        mostrarNotificacion('No se pudo acceder a la cámara', 'error');
+    }
+}
+
+// Tomar foto y clasificar con IA
+async function tomarFoto() {
+    const video = document.getElementById('videoCamara');
+    const canvas = document.getElementById('canvasCamara');
+    const context = canvas.getContext('2d');
+    
+    // Configurar canvas del tamaño del video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Dibujar la imagen del video en el canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Convertir canvas a blob (archivo de imagen)
+    canvas.toBlob(async (blob) => {
+        const usuario_id = document.getElementById('usuario_id').value;
+        
+        // Mostrar loading
+        const resultado = document.getElementById('resultado');
+        resultado.className = 'resultado';
+        resultado.style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+        
+        // Crear FormData para enviar la imagen
+        const formData = new FormData();
+        formData.append('imagen', blob, 'botella.jpg');
+        formData.append('usuario_id', usuario_id);
+        
+        try {
+            const response = await fetch('/clasificar_webcam', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.status === 'ok') {
+                // Mostrar resultado
+                resultado.className = 'resultado exito';
+                resultado.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <div style="font-size: 50px;">🤖</div>
+                        <div style="flex: 1;">
+                            <h3>✅ ¡CLASIFICACIÓN EXITOSA!</h3>
+                            <p>📦 Botella detectada: <strong>${data.tipo_nombre}</strong></p>
+                            <p>⭐ Se han añadido <strong>${data.puntos} puntos</strong></p>
+                            <p>📊 Confianza de la IA: <strong>${data.confianza}%</strong></p>
+                        </div>
+                    </div>
+                `;
+                
+                // Agregar al historial
+                agregarDeteccion(data.tipo_es, data.puntos, data.confianza);
+                mostrarNotificacion(`Botella de ${data.tipo_nombre} clasificada! +${data.puntos} pts`, 'success');
+                
+                // Actualizar ranking y estadísticas
+                cargarRanking();
+                cargarEstadisticas();
+                cargarStatsHeader();
+            } else {
+                throw new Error(data.error || 'Error al clasificar');
+            }
+        } catch (error) {
+            resultado.className = 'resultado error';
+            resultado.innerHTML = `
+                <h3>❌ ERROR</h3>
+                <p>${error.message}</p>
+                <p>⚠️ No se pudo clasificar la imagen. Intenta de nuevo.</p>
+            `;
+            mostrarNotificacion(error.message, 'error');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }, 'image/jpeg', 0.9);
+}
+
+// Agregar detección al historial
+function agregarDeteccion(tipo, puntos, confianza = null) {
+    const ahora = new Date();
+    const hora = ahora.toLocaleTimeString();
+    
+    detecciones.unshift({
+        tipo: tipo,
+        puntos: puntos,
+        hora: hora,
+        confianza: confianza
+    });
+    
+    if (detecciones.length > 15) detecciones.pop();
+    actualizarListaDetecciones();
+}
+
+// Actualizar lista de detecciones en el HTML
+function actualizarListaDetecciones() {
+    const container = document.getElementById('ultimasDetecciones');
+    
+    if (detecciones.length === 0) {
+        container.innerHTML = '<p class="empty-msg">Esperando detecciones...</p>';
+        return;
+    }
+    
+    let html = '';
+    detecciones.forEach(det => {
+        let tipoClase = '';
+        let tipoIcono = '';
+        if (det.tipo === 'plastico') {
+            tipoClase = 'plastico';
+            tipoIcono = '🥤';
+        } else if (det.tipo === 'vidrio') {
+            tipoClase = 'vidrio';
+            tipoIcono = '🍾';
+        } else {
+            tipoClase = 'lata';
+            tipoIcono = '🥫';
+        }
+        
+        let confianzaText = det.confianza ? `<span class="confianza">🤖 ${det.confianza}%</span>` : '';
+        
+        html += `
+            <div class="deteccion-item">
+                <span class="tipo ${tipoClase}">${tipoIcono} ${det.tipo.toUpperCase()}</span>
+                <span>⭐ +${det.puntos} pts</span>
+                ${confianzaText}
+                <span class="hora">${det.hora}</span>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Inicializar eventos de cámara
+document.addEventListener('DOMContentLoaded', () => {
+    cargarEstadoSensor();
+    setInterval(cargarEstadoSensor, 10000);
+});
+
 // Eliminar todos los usuarios
 async function eliminarTodosUsuarios() {
     const mensajeDiv = document.getElementById('mensaje_eliminar');
@@ -552,3 +743,4 @@ async function eliminarTodosUsuarios() {
         }
     }, 5000);
 }
+

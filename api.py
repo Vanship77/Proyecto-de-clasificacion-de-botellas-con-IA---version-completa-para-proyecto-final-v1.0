@@ -369,3 +369,84 @@ if __name__ == '__main__':
     hilo_arduino.start()
     
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+
+    # ========== ENDPOINT PARA CLASIFICAR CON CÁMARA WEB ==========
+
+@app.route('/clasificar_webcam', methods=['POST'])
+def clasificar_webcam():
+    """Clasifica una imagen enviada desde la webcam"""
+    try:
+        from PIL import Image
+        import io
+        
+        if 'imagen' not in request.files:
+            return jsonify({'error': 'No se recibió ninguna imagen'}), 400
+        
+        usuario_id = request.form.get('usuario_id')
+        if not usuario_id:
+            return jsonify({'error': 'ID de usuario requerido'}), 400
+        
+        # Leer la imagen
+        archivo = request.files['imagen']
+        imagen_bytes = archivo.read()
+        
+        # Convertir a formato que TensorFlow pueda procesar
+        img = Image.open(io.BytesIO(imagen_bytes))
+        img = img.convert('RGB')
+        img = img.resize((224, 224))
+        
+        # Convertir a array
+        img_array = np.array(img) / 255.0
+        img_array = np.expand_dims(img_array, axis=0)
+        
+        # Predecir con el modelo
+        if modelo is None:
+            return jsonify({'error': 'Modelo no cargado'}), 500
+        
+        prediccion = modelo.predict(img_array, verbose=0)
+        clase_idx = np.argmax(prediccion[0])
+        confianza = float(prediccion[0][clase_idx]) * 100
+        clase = CLASSES[clase_idx]
+        
+        # Obtener puntos
+        tipo_es = MAPEO.get(clase, clase)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT puntos_base FROM tipos_residuo WHERE nombre = %s", (tipo_es,))
+        resultado = cursor.fetchone()
+        
+        if not resultado:
+            conn.close()
+            return jsonify({'error': 'Tipo no válido'}), 400
+        
+        puntos = resultado[0]
+        
+        # Registrar reciclaje
+        cursor.execute("""
+            INSERT INTO registros_reciclaje (id_usuario, id_tipo_residuo, puntos_ganados, confianza_ia)
+            VALUES (%s, (SELECT id FROM tipos_residuo WHERE nombre = %s), %s, %s) RETURNING id
+        """, (usuario_id, tipo_es, puntos, confianza / 100))
+        
+        cursor.execute("""
+            UPDATE usuarios SET puntos_totales = puntos_totales + %s
+            WHERE id = %s RETURNING puntos_totales
+        """, (puntos, usuario_id))
+        
+        nuevos_puntos = cursor.fetchone()[0]
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'status': 'ok',
+            'tipo': clase,
+            'tipo_es': tipo_es,
+            'tipo_nombre': tipo_es.upper(),
+            'confianza': round(confianza, 2),
+            'puntos': puntos,
+            'puntos_totales': nuevos_puntos,
+            'mensaje': f'Botella de {tipo_es} detectada con {confianza:.1f}% de confianza'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
