@@ -42,7 +42,7 @@
             </div>
         </div>
 
-        <!-- Sección: Crear nuevo usuario -->
+        <!-- SECCIÓN: Crear nuevo usuario (ARRIBA DE TODO, como estaba) -->
         <div class="tabla-container crear-usuario">
             <h3><i class="fas fa-user-plus"></i> Nuevo Reciclador</h3>
             <div class="form-row">
@@ -60,102 +60,78 @@
             </div>
             <div id="mensaje_usuario" class="mensaje-usuario"></div>
         </div>
-    </div>
 
-           
-
-        <!-- Tarjeta principal con formulario de reciclaje -->
+        <!-- Tarjeta principal: ECO RECICLA (con la CÁMARA en lugar del formulario manual) -->
         <div class="card glass-card">
             <div class="header">
                 <div class="header-icon">
                     <i class="fas fa-robot"></i>
                 </div>
                 <h1>♻️ EcoRecicla</h1>
-                <p>Clasificación inteligente de residuos con IA</p>
+                <p>Detección automática de botellas con IA</p>
                 <div class="ia-badge">
                     <i class="fas fa-brain"></i> IA: MobileNetV2
                 </div>
             </div>
 
             <div class="formulario">
+                <!-- Selector de usuario (el que ya tenías) -->
                 <div class="form-group">
                     <label><i class="fas fa-user"></i> ID del Usuario</label>
-                    <input type="number" id="usuario_id" placeholder="Ej: 1" value="1">
-                </div>
-
-                <div class="form-group">
-                    <label><i class="fas fa-trash-alt"></i> Tipo de Residuo</label>
-                    <select id="tipo_residuo" class="custom-select">
-                        <option value="plastic">🥤 Botella de Plástico - 10 pts</option>
-                        <option value="glass">🍾 Botella de Vidrio - 15 pts</option>
-                        <option value="metal">🥫 Lata de Metal - 10 pts</option>
+                    <select id="usuario_id" class="custom-select">
+                        <option value="">Cargando usuarios...</option>
                     </select>
                 </div>
 
+                <!-- CÁMARA Y DETECCIÓN AUTOMÁTICA -->
                 <div class="form-group">
-                    <label><i class="fas fa-chart-line"></i> Confianza de la IA</label>
-                    <div class="confidence-slider">
-                        <input type="range" id="confianza" min="0" max="100" step="0.5" value="96.5">
-                        <span id="confianzaValue" class="confidence-value">96.5%</span>
-                    </div>
-                    <div class="confidence-bar">
-                        <div class="confidence-fill" id="confidenceFill" style="width: 96.5%"></div>
+                    <label><i class="fas fa-camera"></i> Detección automática</label>
+                    <div class="camara-controls">
+                        <button id="btnActivarCamara" class="btn-camara" style="width: 100%; background: linear-gradient(135deg, #2ecc71, #27ae60);">
+                            <i class="fas fa-camera"></i> ACTIVAR CÁMARA Y ESCANEO
+                        </button>
+                        <button id="btnDetenerCamara" class="btn-camara btn-detener" style="display:none; width: 100%;">
+                            <i class="fas fa-stop"></i> DETENER ESCANEO
+                        </button>
                     </div>
                 </div>
 
-                <button class="btn-registrar" onclick="registrarReciclaje()">
-                    <i class="fas fa-leaf"></i> REGISTRAR RECICLAJE
-                </button>
+                <!-- Vista previa de la cámara -->
+                <div class="camara-preview" id="camaraPreview" style="display:none;">
+                    <video id="videoCamara" autoplay playsinline></video>
+                    <canvas id="canvasCamara" style="display:none;"></canvas>
+                    <div class="preview-overlay" id="previewOverlay">
+                        🔍 Esperando activación...
+                    </div>
+                </div>
 
-                <div class="loading" id="loading">
+                <!-- Últimas detecciones -->
+                <div class="ultimas-detecciones" style="margin-top: 20px;">
+                    <h4><i class="fas fa-history"></i> Últimas detecciones</h4>
+                    <div id="ultimasDetecciones">
+                        <p class="empty-msg">Activa la cámara para comenzar</p>
+                    </div>
+                </div>
+
+                <div class="loading" id="loading" style="display:none;">
                     <div class="spinner"></div>
                     <p>Procesando con IA...</p>
                 </div>
 
-                <div id="resultado" class="resultado"></div>
+                <div id="resultado" class="resultado" style="display:none;"></div>
             </div>
         </div>
 
-                <!-- Estado del sensor infrarrojo y cámara -->
-        <div class="sensor-status-card">
-            <h3><i class="fas fa-microchip"></i> Sistema de Detección Inteligente</h3>
-            <div class="sensor-info">
-                <div class="sensor-led">
-                    <div class="led led-green" id="sensorLed"></div>
-                    <span id="sensorEstado">Conectado</span>
-                </div>
-                <div class="sensor-config">
-                    <p><i class="fas fa-user"></i> Usuario activo: <strong id="sensorUsuario">1</strong></p>
-                    <p><i class="fas fa-camera"></i> Cámara: <strong id="camaraEstado">Lista</strong></p>
+        <!-- ========== NUEVA SECCIÓN: SELECTOR DE USUARIOS (como estaba) ========== -->
+        
+         <div class="tabla-container">
+                <h3><i class="fas fa-chart-pie"></i> Mis Estadísticas</h3>
+                <div class="stats-cards" id="estadisticas">
+                    <div class="skeleton-loader"></div>
                 </div>
             </div>
-            
-            <!-- Botones de control de cámara -->
-            <div class="camara-controls">
-                <button id="btnActivarCamara" class="btn-camara" onclick="activarCamara()">
-                    <i class="fas fa-camera"></i> ACTIVAR CÁMARA
-                </button>
-                <button id="btnTomarFoto" class="btn-camara" onclick="tomarFoto()" style="display:none;">
-                    <i class="fas fa-camera-retro"></i> CLASIFICAR BOTELLA
-                </button>
-            </div>
-            
-            <!-- Vista previa de la cámara -->
-            <div class="camara-preview" id="camaraPreview" style="display:none;">
-                <video id="videoCamara" autoplay playsinline></video>
-                <canvas id="canvasCamara" style="display:none;"></canvas>
-                <div class="preview-overlay" id="previewOverlay"></div>
-            </div>
-            
-            <div class="ultimas-detecciones">
-                <h4><i class="fas fa-history"></i> Últimas detecciones</h4>
-                <div id="ultimasDetecciones">
-                    <p class="empty-msg">Esperando detecciones...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- ========== NUEVA SECCIÓN: SELECTOR DE USUARIOS ========== -->
+        </div>   
+        
         <div class="tabla-container selector-usuario-container">
             <h3><i class="fas fa-users"></i> Ver estadísticas de otro usuario</h3>
             <div class="selector-usuario">
@@ -169,8 +145,8 @@
             <div id="infoUsuarioSeleccionado" class="info-usuario"></div>
         </div>
 
+        <!-- Ranking y Estadísticas -->
         <div class="dashboard-grid">
-            <!-- Sección: Ranking -->
             <div class="tabla-container">
                 <h3><i class="fas fa-trophy"></i> Ranking de Recicladores</h3>
                 <div class="ranking-list" id="ranking">
@@ -178,16 +154,9 @@
                 </div>
             </div>
 
-            <!-- Sección: Estadísticas del usuario -->
-            <div class="tabla-container">
-                <h3><i class="fas fa-chart-pie"></i> Mis Estadísticas</h3>
-                <div class="stats-cards" id="estadisticas">
-                    <div class="skeleton-loader"></div>
-                </div>
-            </div>
-        </div>
+           
 
-         <!-- Sección: Eliminar usuarios -->
+        <!-- Sección: Eliminar usuarios (al final, como estaba originalmente) -->
         <div class="tabla-container eliminar-usuario">
             <h3><i class="fas fa-trash-alt"></i> Eliminar Usuarios</h3>
             <div class="form-row">
@@ -206,7 +175,7 @@
             </div>
             <div id="mensaje_eliminar" class="mensaje-usuario"></div>
         </div>
-
+    </div>
 
     <!-- Footer -->
     <footer class="footer">
@@ -215,11 +184,11 @@
                 <i class="fas fa-recycle"></i>
                 <span>EcoRecicla</span>
             </div>
-            <p>🌱 ¡Cada botella reciclada es un paso para salvar el planeta!</p>
+            <p>🌱 Detección automática con IA - ¡Acerca la botella y gana puntos!</p>
             <div class="footer-links">
-                <span><i class="fas fa-microchip"></i> IA: TensorFlow</span>
-                <span><i class="fas fa-database"></i> PostgreSQL</span>
-                <span><i class="fas fa-microphone"></i> Arduino compatible</span>
+                <span><i class="fas fa-microchip"></i> IA: MobileNetV2</span>
+                <span><i class="fas fa-camera"></i> Escaneo automático</span>
+                <span><i class="fas fa-robot"></i> Detección en tiempo real</span>
             </div>
         </div>
     </footer>

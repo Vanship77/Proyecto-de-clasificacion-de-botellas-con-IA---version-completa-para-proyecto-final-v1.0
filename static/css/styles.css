@@ -937,3 +937,95 @@ body.light-mode .sensor-status-card {
         justify-content: center;
     }
 }
+
+/* ========== ESTILOS PARA DETECCIÓN AUTOMÁTICA ========== */
+
+/* Botón de detener */
+.btn-detener {
+    background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+}
+
+.btn-detener:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+}
+
+/* Overlay de cámara mejorado */
+.preview-overlay {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: white;
+    text-align: center;
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    font-weight: bold;
+}
+
+/* Indicador de escaneo animado */
+@keyframes scanPulse {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+}
+
+/* Efecto de flash al detectar */
+@keyframes flash {
+    0% { opacity: 0; }
+    50% { opacity: 0.5; }
+    100% { opacity: 0; }
+}
+
+.flash-effect {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: white;
+    pointer-events: none;
+    animation: flash 0.3s ease-out;
+    z-index: 9999;
+}
+
+/* Notificaciones de detección */
+.deteccion-item .confianza {
+    font-size: 10px;
+    background: rgba(46, 204, 113, 0.2);
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 5px;
+}
+
+/* Badge de detección automática */
+.auto-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(46, 204, 113, 0.9);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    z-index: 10;
+}
+
+/* Animación de pulso para el indicador */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.auto-badge i {
+    animation: pulse 1.5s infinite;
+}
