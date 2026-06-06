@@ -1,6 +1,9 @@
 # src/api/servidor.py
 from flask import Flask, request, jsonify
+<<<<<<< HEAD
 from bd.conexion import Database
+=======
+>>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
 from src.bd.conexion import Database
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
