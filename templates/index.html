@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>♻️ EcoRecicla - Sistema Inteligente de Reciclaje</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+
+<body>
+    <div class="theme-toggle">
+        <button id="themeToggle" class="theme-btn"><i class="fas fa-moon"></i></button>
+    </div>
+
+    <div class="container">
+        <!-- Header estadísticas -->
+        <div class="stats-header">
+            <div class="stat-card"><i class="fas fa-recycle"></i>
+                <div class="stat-info"><span class="stat-value" id="totalReciclajesHoy">0</span><span
+                        class="stat-label">Reciclajes hoy</span></div>
+            </div>
+            <div class="stat-card"><i class="fas fa-trophy"></i>
+                <div class="stat-info"><span class="stat-value" id="totalPuntosHoy">0</span><span
+                        class="stat-label">Puntos hoy</span></div>
+            </div>
+            <div class="stat-card"><i class="fas fa-users"></i>
+                <div class="stat-info"><span class="stat-value" id="totalUsuarios">0</span><span
+                        class="stat-label">Recicladores</span></div>
+            </div>
+        </div>
+
+        <!-- Cuadrito de puntajes por material con EMOJIS -->
+        <div class="puntajes-container">
+            <h4>💰 Puntajes por material</h4>
+            <div class="puntajes-grid">
+                <div class="puntaje-card plastic-puntaje">
+                    <span style="font-size: 36px;">🥤</span>
+                    <span>Plástico</span>
+                    <strong style="color: #3498db;">+10 pts</strong>
+                </div>
+                <div class="puntaje-card glass-puntaje">
+                    <span style="font-size: 36px;">🍾</span>
+                    <span>Vidrio</span>
+                    <strong style="color: #2ecc71;">+15 pts</strong>
+                </div>
+                <div class="puntaje-card metal-puntaje">
+                    <span style="font-size: 36px;">🥫</span>
+                    <span>Lata</span>
+                    <strong style="color: #e74c3c;">+10 pts</strong>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Crear nuevo usuario -->
+        <div class="tabla-container crear-usuario">
+            <h3><i class="fas fa-user-plus"></i> Nuevo Reciclador</h3>
+            <div class="form-row">
+                <div class="input-group"><i class="fas fa-user input-icon"></i><input type="text" id="nuevo_nombre"
+                        placeholder="Nombre completo"></div>
+                <div class="input-group"><i class="fas fa-envelope input-icon"></i><input type="email" id="nuevo_email"
+                        placeholder="Correo electrónico"></div>
+                <button class="btn-crear" onclick="crearUsuario()"><i class="fas fa-plus"></i> CREAR USUARIO</button>
+            </div>
+            <div id="mensaje_usuario" class="mensaje-usuario"></div>
+        </div>
+
+        <!-- Tarjeta principal con cámara -->
+        <div class="card glass-card">
+            <div class="header">
+                <div class="header-icon"><i class="fas fa-robot"></i></div>
+                <h1>♻️ EcoRecicla</h1>
+                <p>Detección automática de botellas con IA</p>
+                <div class="ia-badge"><i class="fas fa-brain"></i> IA: MobileNetV2</div>
+            </div>
+            <div class="formulario">
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> Selecciona tu usuario</label>
+                    <select id="usuario_id" class="custom-select">
+                        <option value="">Cargando usuarios...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-camera"></i> Detección automática</label>
+                    <div class="camara-controls">
+                        <button id="btnActivarCamara" class="btn-camara" style="width:100%"><i
+                                class="fas fa-camera"></i> ACTIVAR CÁMARA Y ESCANEO</button>
+                        <button id="btnDetenerCamara" class="btn-camara btn-detener" style="display:none; width:100%"><i
+                                class="fas fa-stop"></i> DETENER ESCANEO</button>
+                    </div>
+                </div>
+                <div class="camara-preview" id="camaraPreview" style="display:none;">
+                    <video id="videoCamara" autoplay playsinline></video>
+                    <canvas id="canvasCamara" style="display:none;"></canvas>
+                    <div class="preview-overlay" id="previewOverlay">🔍 Esperando activación...</div>
+                </div>
+                <div class="ultimas-detecciones" style="margin-top:20px">
+                    <h4><i class="fas fa-history"></i> Últimas detecciones</h4>
+                    <div id="ultimasDetecciones">
+                        <p class="empty-msg">Activa la cámara para comenzar</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ver estadísticas de otro usuario -->
+        <div class="tabla-container selector-usuario-container">
+            <h3><i class="fas fa-users"></i> Ver estadísticas de otro usuario</h3>
+            <div class="selector-usuario">
+                <select id="selector_usuario" class="custom-select">
+                    <option value="">-- Selecciona un usuario --</option>
+                </select>
+                <button id="btnVerEstadisticas" class="btn-ver"><i class="fas fa-chart-line"></i> VER
+                    ESTADÍSTICAS</button>
+            </div>
+            <div id="infoUsuarioSeleccionado" class="info-usuario"></div>
+        </div>
+
+        <!-- Ranking y Estadísticas -->
+        <div class="dashboard-grid">
+            <div class="tabla-container">
+                <h3><i class="fas fa-trophy"></i> Ranking de Recicladores</h3>
+                <div class="ranking-list" id="ranking">
+                    <div class="skeleton-loader"></div>
+                </div>
+            </div>
+            <div class="tabla-container">
+                <h3><i class="fas fa-chart-pie"></i> Mis Estadísticas</h3>
+                <div class="stats-cards" id="estadisticas">
+                    <div class="skeleton-loader"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Eliminar usuarios -->
+        <div class="tabla-container eliminar-usuario">
+            <h3><i class="fas fa-trash-alt"></i> Eliminar Usuarios</h3>
+            <div class="form-row">
+                <div class="input-group"><i class="fas fa-id-card input-icon"></i><input type="number"
+                        id="eliminar_usuario_id" placeholder="ID del usuario a eliminar"></div>
+                <button class="btn-eliminar" onclick="eliminarUsuario()"><i class="fas fa-trash-alt"></i> ELIMINAR
+                    USUARIO</button>
+            </div>
+            <div class="form-row" style="margin-top:15px">
+                <button class="btn-eliminar-todos" onclick="eliminarTodosUsuarios()"><i
+                        class="fas fa-skull-crosswalk"></i> ELIMINAR TODOS LOS USUARIOS</button>
+            </div>
+            <div id="mensaje_eliminar" class="mensaje-usuario"></div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-logo"><i class="fas fa-recycle"></i><span>EcoRecicla</span></div>
+            <p>🌱 Detección automática con IA - ¡Acerca la botella y gana puntos!</p>
+            <div class="footer-links">
+                <span><i class="fas fa-microchip"></i> IA: MobileNetV2</span>
+                <span><i class="fas fa-camera"></i> Escaneo automático</span>
+                <span><i class="fas fa-robot"></i> Detección en tiempo real</span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+
+</html>
