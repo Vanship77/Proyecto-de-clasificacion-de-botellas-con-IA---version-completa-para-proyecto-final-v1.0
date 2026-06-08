@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 # api.py - Servidor API con YOLO + MobileNet
-=======
-# api.py - Servidor API para Arduino (con interfaz web y sensor infrarrojo)
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
 from flask import Flask, request, jsonify, render_template
 import psycopg2
 import tensorflow as tf
@@ -15,11 +11,8 @@ import time
 import requests
 from PIL import Image
 import io
-<<<<<<< HEAD
 import cv2  # OpenCV para procesar imágenes
 from ultralytics import YOLO  # YOLO para detectar botellas
-=======
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
 
 app = Flask(__name__)
 
@@ -38,7 +31,6 @@ DB_CONFIG = {
     'port': '5432'
 }
 
-<<<<<<< HEAD
 # ========== CARGAR MODELO YOLO (detector de objetos) ==========
 print("🔄 Cargando modelo YOLO...")
 try:
@@ -55,15 +47,6 @@ try:
 except Exception as e:
     print(f"⚠️ No se pudo cargar el modelo: {e}")
     modelo_mobilenet = None
-=======
-# Cargar modelo entrenado
-try:
-    modelo = tf.keras.models.load_model('modelos_guardados/clasificador_botellas.h5')
-    print("✅ Modelo de IA cargado correctamente")
-except Exception as e:
-    print(f"⚠️ No se pudo cargar el modelo: {e}")
-    modelo = None
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
 
 CLASSES = ['glass', 'metal', 'plastic']
 
@@ -76,7 +59,6 @@ MAPEO = {
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
 
-<<<<<<< HEAD
 # ========== FUNCIÓN PARA DETECTAR Y RECORTAR BOTELLA CON YOLO ==========
 def detectar_y_recortar_botella(imagen_cv2):
     """
@@ -133,8 +115,6 @@ def preprocesar_para_mobilenet(imagen_cv2):
     img_array = np.expand_dims(img_array, axis=0)
     return img_array
 
-=======
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
 # ========== RUTA PARA LA PÁGINA WEB ==========
 @app.route('/')
 def index():
@@ -253,10 +233,6 @@ def ranking():
         print(f"Error en ranking: {e}")
         return jsonify({'error': str(e)}), 500
 
-<<<<<<< HEAD
-=======
-# ========== ENDPOINT DE ESTADÍSTICAS (AGREGADO) ==========
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
 @app.route('/estadisticas/<int:usuario_id>', methods=['GET'])
 def estadisticas_usuario(usuario_id):
     try:
@@ -292,11 +268,6 @@ def estadisticas_usuario(usuario_id):
         print(f"Error en estadisticas: {e}")
         return jsonify({'error': str(e)}), 500
 
-<<<<<<< HEAD
-=======
-# ========== ENDPOINTS PARA ELIMINAR USUARIOS ==========
-
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
 @app.route('/eliminar_usuario/<int:usuario_id>', methods=['DELETE'])
 def eliminar_usuario(usuario_id):
     try:
@@ -388,17 +359,10 @@ def estado_sensor():
         'tipo_nombre': MAPEO.get(TIPO_POR_DEFECTO, TIPO_POR_DEFECTO)
     }), 200
 
-<<<<<<< HEAD
 # ========== ENDPOINT MEJORADO CON YOLO + MOBILENET ==========
 @app.route('/clasificar_webcam', methods=['POST'])
 def clasificar_webcam():
     """Clasifica una imagen usando YOLO (detección) + MobileNet (clasificación)"""
-=======
-# ========== ENDPOINT PARA CLASIFICAR CON CÁMARA WEB ==========
-@app.route('/clasificar_webcam', methods=['POST'])
-def clasificar_webcam():
-    """Clasifica una imagen enviada desde la webcam"""
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
     try:
         if 'imagen' not in request.files:
             return jsonify({'error': 'No se recibió ninguna imagen'}), 400
@@ -411,7 +375,6 @@ def clasificar_webcam():
         archivo = request.files['imagen']
         imagen_bytes = archivo.read()
         
-<<<<<<< HEAD
         # Convertir a formato OpenCV (para YOLO)
         nparr = np.frombuffer(imagen_bytes, np.uint8)
         img_cv2 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -445,31 +408,11 @@ def clasificar_webcam():
         
         img_para_mobilenet = preprocesar_para_mobilenet(recorte_botella)
         prediccion = modelo_mobilenet.predict(img_para_mobilenet, verbose=0)
-=======
-        # Convertir a formato que TensorFlow pueda procesar
-        img = Image.open(io.BytesIO(imagen_bytes))
-        img = img.convert('RGB')
-        img = img.resize((224, 224))
-        
-        # Convertir a array
-        img_array = np.array(img) / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
-        
-        # Predecir con el modelo
-        if modelo is None:
-            return jsonify({'error': 'Modelo no cargado. Entrena primero el modelo.'}), 500
-        
-        prediccion = modelo.predict(img_array, verbose=0)
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
         clase_idx = np.argmax(prediccion[0])
         confianza = float(prediccion[0][clase_idx]) * 100
         clase = CLASSES[clase_idx]
         
-<<<<<<< HEAD
         # ========== PASO 3: REGISTRAR EN BASE DE DATOS ==========
-=======
-        # Obtener puntos
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
         tipo_es = MAPEO.get(clase, clase)
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -483,10 +426,6 @@ def clasificar_webcam():
         
         puntos = resultado[0]
         
-<<<<<<< HEAD
-=======
-        # Registrar reciclaje
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
         cursor.execute("""
             INSERT INTO registros_reciclaje (id_usuario, id_tipo_residuo, puntos_ganados, confianza_ia)
             VALUES (%s, (SELECT id FROM tipos_residuo WHERE nombre = %s), %s, %s) RETURNING id
@@ -501,16 +440,10 @@ def clasificar_webcam():
         conn.commit()
         conn.close()
         
-<<<<<<< HEAD
         mapa_nombres = {'glass': 'VIDRIO', 'metal': 'LATA', 'plastic': 'PLÁSTICO'}
         
         print(f"✅ Clasificado: {tipo_es} con {confianza:.1f}% confianza")
         
-=======
-        # Mapear nombre para mostrar
-        mapa_nombres = {'glass': 'VIDRIO', 'metal': 'LATA', 'plastic': 'PLÁSTICO'}
-        
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
         return jsonify({
             'status': 'ok',
             'tipo': clase,
@@ -523,11 +456,7 @@ def clasificar_webcam():
         }), 200
         
     except Exception as e:
-<<<<<<< HEAD
         print(f"❌ Error en clasificar_webcam: {e}")
-=======
-        print(f"Error en clasificar_webcam: {e}")
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
         return jsonify({'error': str(e)}), 500
 
 # ========== FUNCIÓN PARA LEER EL ARDUINO EN SEGUNDO PLANO ==========
@@ -591,11 +520,7 @@ if __name__ == '__main__':
     print("   DELETE /eliminar_todos_usuarios - Eliminar todos")
     print("   POST /configurar_sensor - Configurar sensor")
     print("   GET  /estado_sensor    - Estado del sensor")
-<<<<<<< HEAD
     print("   POST /clasificar_webcam - Clasificar con YOLO + MobileNet")
-=======
-    print("   POST /clasificar_webcam - Clasificar desde cámara")
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
     print("\n🔌 Configuración del sensor infrarrojo:")
     print(f"   Puerto Arduino: {PUERTO_ARDUINO}")
     print(f"   Usuario por defecto: {USUARIO_POR_DEFECTO}")
@@ -603,10 +528,6 @@ if __name__ == '__main__':
     print("\n🚀 Servidor en http://127.0.0.1:5000")
     print("🌍 Interfaz web en http://127.0.0.1:5000")
     print("=" * 50)
-<<<<<<< HEAD
-=======
-    print("\n📡 Iniciando comunicación con Arduino...")
->>>>>>> 9c8f610d0fc3e4776aef5e8bc91acb6d559abc18
     
     try:
         hilo_arduino = threading.Thread(target=leer_arduino, daemon=True)
