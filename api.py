@@ -1,5 +1,6 @@
-# api.py - Servidor API con YOLO + MobileNet
-from flask import Flask, request, jsonify, render_template
+# api.py - Servidor API con YOLO + MobileNet + Login + Roles + Sensor automático
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from functools import wraps
 import psycopg2
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
@@ -11,18 +12,21 @@ import time
 import requests
 from PIL import Image
 import io
-import cv2  # OpenCV para procesar imágenes
-from ultralytics import YOLO  # YOLO para detectar botellas
+import cv2
+from ultralytics import YOLO
+import hashlib
+import secrets
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
+app.secret_key = 'tu_clave_secreta_muy_segura_123456789'  # CAMBIAR EN PRODUCCIÓN
 
-# ========== CONFIGURACIÓN DEL PUERTO SERIAL PARA ARDUINO ==========
+# ========== CONFIGURACIÓN ==========
 PUERTO_ARDUINO = 'COM3'
 VELOCIDAD_ARDUINO = 9600
 USUARIO_POR_DEFECTO = 1
 TIPO_POR_DEFECTO = 'plastic'
 
-# ========== CONFIGURACIÓN DE BASE DE DATOS ==========
 DB_CONFIG = {
     'host': 'localhost',
     'database': 'reciclaje_ia',
@@ -31,97 +35,225 @@ DB_CONFIG = {
     'port': '5432'
 }
 
-# ========== CARGAR MODELO YOLO (detector de objetos) ==========
-print("🔄 Cargando modelo YOLO...")
-try:
-    modelo_yolo = YOLO('yolov8n.pt')  # Modelo nano (rápido y liviano)
-    print("✅ Modelo YOLO cargado correctamente")
-except Exception as e:
-    print(f"⚠️ No se pudo cargar YOLO: {e}")
-    modelo_yolo = None
+# ========== FUNCIÓN DE HASH PARA CONTRASEÑAS ==========
+def hash_contrasena(contrasena):
+    """Genera un hash SHA-256 de la contraseña"""
+    return hashlib.sha256(contrasena.encode()).hexdigest()
 
-# ========== CARGAR MODELO MOBILENET (clasificador de materiales) ==========
+# ========== DECORADOR PARA VERIFICAR SESIÓN ==========
+def login_requerido(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'usuario_id' not in session:
+            return redirect(url_for('login_page'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_requerido(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'usuario_id' not in session:
+            return redirect(url_for('login_page'))
+        if session.get('rol') != 'admin':
+            return render_template('error.html', mensaje='Acceso denegado. Se requieren permisos de administrador.')
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ========== CARGAR MODELOS ==========
+print("🔄 Cargando modelos...")
 try:
-    modelo_mobilenet = tf.keras.models.load_model('modelos_guardados/clasificador_botellas.h5')
-    print("✅ Modelo MobileNet cargado correctamente")
-except Exception as e:
-    print(f"⚠️ No se pudo cargar el modelo: {e}")
-    modelo_mobilenet = None
+    modelo_yolo = YOLO('yolov8n.pt')
+    print("✅ YOLO cargado")
+except:
+    modelo_yolo = None
+    print("⚠️ YOLO no disponible")
+
+try:
+    # Cargar EfficientNetB0
+    modelo_efficientnet = tf.keras.models.load_model('modelos_guardados/clasificador_efficientnet.h5')
+    print("✅ EfficientNetB0 cargado")
+except:
+    modelo_efficientnet = None
+    print("⚠️ EfficientNetB0 no disponible")
 
 CLASSES = ['glass', 'metal', 'plastic']
-
-MAPEO = {
-    'glass': 'vidrio',
-    'metal': 'lata',
-    'plastic': 'plastico'
-}
+MAPEO = {'glass': 'vidrio', 'metal': 'lata', 'plastic': 'plastico'}
 
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
 
-# ========== FUNCIÓN PARA DETECTAR Y RECORTAR BOTELLA CON YOLO ==========
+# ========== FUNCIONES DE DETECCIÓN ==========
 def detectar_y_recortar_botella(imagen_cv2):
-    """
-    Detecta si hay una botella en la imagen usando YOLO.
-    Si encuentra una, devuelve el recorte de la botella.
-    Si no, devuelve None.
-    """
     if modelo_yolo is None:
-        return None  # Si YOLO no está disponible, no filtramos
+        return imagen_cv2
     
-    # Redimensionar para YOLO (optimizar rendimiento)
     h, w = imagen_cv2.shape[:2]
     if w > 640:
         escala = 640 / w
-        nuevo_w = 640
-        nuevo_h = int(h * escala)
-        imagen_cv2 = cv2.resize(imagen_cv2, (nuevo_w, nuevo_h))
+        imagen_cv2 = cv2.resize(imagen_cv2, (640, int(h * escala)))
     
-    # Ejecutar YOLO
     resultados = modelo_yolo(imagen_cv2, verbose=False)
-    
-    # Buscar la mejor botella (clase 39 = 'bottle' en COCO)
     mejor_botella = None
     mejor_confianza = 0
     
     for caja in resultados[0].boxes:
         clase = int(caja.cls[0])
         confianza = float(caja.conf[0])
-        
-        if clase == 39 and confianza > 0.5:  # 39 = bottle, confianza > 50%
-            if confianza > mejor_confianza:
-                mejor_confianza = confianza
-                x1, y1, x2, y2 = map(int, caja.xyxy[0])
-                # Asegurar que las coordenadas estén dentro de la imagen
-                x1, y1 = max(0, x1), max(0, y1)
-                x2, y2 = min(imagen_cv2.shape[1], x2), min(imagen_cv2.shape[0], y2)
-                mejor_botella = imagen_cv2[y1:y2, x1:x2]
+        if clase == 39 and confianza > 0.5 and confianza > mejor_confianza:
+            mejor_confianza = confianza
+            x1, y1, x2, y2 = map(int, caja.xyxy[0])
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(imagen_cv2.shape[1], x2), min(imagen_cv2.shape[0], y2)
+            mejor_botella = imagen_cv2[y1:y2, x1:x2]
     
-    if mejor_botella is not None:
-        print(f"🎯 Botella detectada con confianza: {mejor_confianza:.2f}")
-        return mejor_botella
-    else:
-        print("❌ No se detectó ninguna botella en la imagen")
-        return None
+    return mejor_botella
 
 def preprocesar_para_mobilenet(imagen_cv2):
-    """Convierte una imagen de OpenCV al formato que espera MobileNet"""
-    # Convertir de BGR (OpenCV) a RGB
     img_rgb = cv2.cvtColor(imagen_cv2, cv2.COLOR_BGR2RGB)
-    # Redimensionar a 224x224 (tamaño que espera MobileNet)
     img_resized = cv2.resize(img_rgb, (224, 224))
-    # Normalizar y expandir dimensiones
     img_array = np.array(img_resized) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
-    return img_array
+    return np.expand_dims(img_array, axis=0)
 
-# ========== RUTA PARA LA PÁGINA WEB ==========
+# ========== FUNCIÓN PARA ARDUINO ==========
+def leer_arduino():
+    try:
+        arduino = serial.Serial(PUERTO_ARDUINO, VELOCIDAD_ARDUINO, timeout=1)
+        time.sleep(2)
+        print(f"✅ Conectado a Arduino en {PUERTO_ARDUINO}")
+
+        while True:
+            if arduino.in_waiting > 0:
+                linea = arduino.readline().decode('utf-8').strip()
+                print(f"📨 Arduino: {linea}")
+                
+                if linea == "BOTELLA_DETECTADA":
+                    print("🔴 ¡Botella detectada!")
+                    datos = {"usuario_id": USUARIO_POR_DEFECTO, "tipo": TIPO_POR_DEFECTO, "confianza": 99.9}
+                    try:
+                        r = requests.post('http://127.0.0.1:5000/reciclar', json=datos)
+                        if r.status_code == 200:
+                            data = r.json()
+                            print(f"✅ +{data.get('puntos_ganados', 0)} pts")
+                    except:
+                        pass
+            time.sleep(0.1)
+    except:
+        print(f"❌ No se pudo conectar a Arduino en {PUERTO_ARDUINO}")
+
+# ========== RUTAS DE AUTENTICACIÓN ==========
+@app.route('/login')
+def login_page():
+    if 'usuario_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('login.html')
+
+@app.route('/registro')
+def registro_page():
+    if 'usuario_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('registro.html')
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    try:
+        datos = request.get_json()
+        email = datos.get('email')
+        contrasena = datos.get('contrasena')
+        
+        if not email or not contrasena:
+            return jsonify({'error': 'Email y contraseña requeridos'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, nombre, email, contrasena, rol, puntos_totales
+            FROM usuarios WHERE email = %s
+        """, (email,))
+        usuario = cursor.fetchone()
+        conn.close()
+        
+        if not usuario:
+            return jsonify({'error': 'Credenciales incorrectas'}), 401
+        
+        contrasena_hash = hash_contrasena(contrasena)
+        if usuario[3] != contrasena_hash:
+            return jsonify({'error': 'Credenciales incorrectas'}), 401
+        
+        session['usuario_id'] = usuario[0]
+        session['nombre'] = usuario[1]
+        session['email'] = usuario[2]
+        session['rol'] = usuario[4]
+        session['puntos'] = usuario[5]
+        
+        return jsonify({
+            'status': 'ok',
+            'usuario': {
+                'id': usuario[0],
+                'nombre': usuario[1],
+                'email': usuario[2],
+                'rol': usuario[4],
+                'puntos': usuario[5]
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/registro', methods=['POST'])
+def api_registro():
+    try:
+        datos = request.get_json()
+        nombre = datos.get('nombre')
+        email = datos.get('email')
+        contrasena = datos.get('contrasena')
+        
+        if not nombre or not email or not contrasena:
+            return jsonify({'error': 'Todos los campos son requeridos'}), 400
+        
+        if len(contrasena) < 6:
+            return jsonify({'error': 'La contraseña debe tener al menos 6 caracteres'}), 400
+        
+        contrasena_hash = hash_contrasena(contrasena)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO usuarios (nombre, email, contrasena, rol, puntos_totales)
+            VALUES (%s, %s, %s, 'usuario', 0) RETURNING id
+        """, (nombre, email, contrasena_hash))
+        
+        usuario_id = cursor.fetchone()[0]
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'status': 'ok', 'mensaje': 'Usuario registrado', 'id': usuario_id}), 201
+    except Exception as e:
+        if 'duplicate key' in str(e).lower():
+            return jsonify({'error': 'El email ya está registrado'}), 400
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login_page'))
+
+# ========== RUTAS DE INTERFAZ ==========
 @app.route('/')
 def index():
-    return render_template('index.html')
+    if 'usuario_id' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login_page'))
 
-# ========== ENDPOINTS PARA ARDUINO ==========
+@app.route('/dashboard')
+@login_requerido
+def dashboard():
+    return render_template('dashboard_usuario.html')
 
+@app.route('/admin')
+@admin_requerido
+def admin_panel():
+    return render_template('dashboard_admin.html')
+
+# ========== ENDPOINTS EXISTENTES (CON PROTECCIÓN) ==========
 @app.route('/reciclar', methods=['POST'])
 def registrar_reciclaje():
     try:
@@ -176,42 +308,42 @@ def listar_usuarios():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, nombre, puntos_totales FROM usuarios ORDER BY nombre ASC")
-        usuarios = [{'id': u[0], 'nombre': u[1], 'puntos': u[2]} for u in cursor.fetchall()]
+        cursor.execute("SELECT id, nombre, puntos_totales, rol FROM usuarios WHERE rol != 'admin' ORDER BY nombre ASC")
+        usuarios = [{'id': u[0], 'nombre': u[1], 'puntos': u[2], 'rol': u[3]} for u in cursor.fetchall()]
         conn.close()
-        print(f"📋 Usuarios encontrados: {len(usuarios)}")
         return jsonify(usuarios), 200
     except Exception as e:
-        print(f"❌ Error en listar_usuarios: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/crear_usuario', methods=['POST'])
+@admin_requerido
 def crear_usuario():
     try:
         datos = request.get_json()
         nombre = datos.get('nombre')
         email = datos.get('email')
+        contrasena = datos.get('contrasena', '123456')
+        rol = datos.get('rol', 'usuario')
         
         if not nombre or not email:
             return jsonify({'error': 'Nombre y email requeridos'}), 400
         
+        contrasena_hash = hash_contrasena(contrasena)
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO usuarios (nombre, email, puntos_totales)
-            VALUES (%s, %s, 0) RETURNING id, puntos_totales
-        """, (nombre, email))
+            INSERT INTO usuarios (nombre, email, contrasena, rol, puntos_totales)
+            VALUES (%s, %s, %s, %s, 0) RETURNING id, puntos_totales
+        """, (nombre, email, contrasena_hash, rol))
         
         usuario_id, puntos = cursor.fetchone()
         conn.commit()
         conn.close()
         
-        return jsonify({'id': usuario_id, 'nombre': nombre, 'puntos': puntos}), 201
+        return jsonify({'id': usuario_id, 'nombre': nombre, 'puntos': puntos, 'rol': rol}), 201
     except Exception as e:
-        print(f"❌ Error en crear_usuario: {e}")
         return jsonify({'error': str(e)}), 500
-
-# ========== ENDPOINTS PARA LA INTERFAZ WEB ==========
 
 @app.route('/ranking', methods=['GET'])
 def ranking():
@@ -222,6 +354,7 @@ def ranking():
             SELECT nombre, puntos_totales, 
                    (SELECT COUNT(*) FROM registros_reciclaje WHERE id_usuario = u.id) as reciclajes
             FROM usuarios u
+            WHERE u.rol != 'admin'
             ORDER BY puntos_totales DESC
             LIMIT 10
         """)
@@ -265,10 +398,10 @@ def estadisticas_usuario(usuario_id):
             })
         return jsonify({'error': 'Usuario no encontrado'}), 404
     except Exception as e:
-        print(f"Error en estadisticas: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/eliminar_usuario/<int:usuario_id>', methods=['DELETE'])
+@admin_requerido
 def eliminar_usuario(usuario_id):
     try:
         conn = get_db_connection()
@@ -298,23 +431,24 @@ def eliminar_usuario(usuario_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/eliminar_todos_usuarios', methods=['DELETE'])
+@admin_requerido
 def eliminar_todos_usuarios():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT COUNT(*) FROM usuarios")
+        cursor.execute("SELECT COUNT(*) FROM usuarios WHERE rol != 'admin'")
         total_usuarios = cursor.fetchone()[0]
         
         if total_usuarios == 0:
             conn.close()
             return jsonify({
                 'status': 'ok',
-                'mensaje': 'No hay usuarios para eliminar'
+                'mensaje': 'No hay usuarios para eliminar (el admin no se elimina)'
             }), 200
         
-        cursor.execute("DELETE FROM registros_reciclaje")
-        cursor.execute("DELETE FROM usuarios")
+        cursor.execute("DELETE FROM registros_reciclaje WHERE id_usuario IN (SELECT id FROM usuarios WHERE rol != 'admin')")
+        cursor.execute("DELETE FROM usuarios WHERE rol != 'admin'")
         
         cursor.execute("ALTER SEQUENCE usuarios_id_seq RESTART WITH 1")
         cursor.execute("ALTER SEQUENCE registros_reciclaje_id_seq RESTART WITH 1")
@@ -324,95 +458,59 @@ def eliminar_todos_usuarios():
         
         return jsonify({
             'status': 'ok',
-            'mensaje': f'Se eliminaron {total_usuarios} usuarios y todos sus reciclajes'
+            'mensaje': f'Se eliminaron {total_usuarios} usuarios'
         }), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/configurar_sensor', methods=['POST'])
-def configurar_sensor():
-    try:
-        datos = request.get_json()
-        global USUARIO_POR_DEFECTO, TIPO_POR_DEFECTO
-        
-        if 'usuario_id' in datos:
-            USUARIO_POR_DEFECTO = datos['usuario_id']
-        if 'tipo' in datos and datos['tipo'] in ['plastic', 'glass', 'metal']:
-            TIPO_POR_DEFECTO = datos['tipo']
-        
-        return jsonify({
-            'status': 'ok',
-            'mensaje': 'Configuración actualizada',
-            'usuario_id': USUARIO_POR_DEFECTO,
-            'tipo': TIPO_POR_DEFECTO
-        }), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/estado_sensor', methods=['GET'])
-def estado_sensor():
-    return jsonify({
-        'conectado': True,
-        'usuario_id': USUARIO_POR_DEFECTO,
-        'tipo': TIPO_POR_DEFECTO,
-        'tipo_nombre': MAPEO.get(TIPO_POR_DEFECTO, TIPO_POR_DEFECTO)
-    }), 200
-
-# ========== ENDPOINT MEJORADO CON YOLO + MOBILENET ==========
 @app.route('/clasificar_webcam', methods=['POST'])
 def clasificar_webcam():
-    """Clasifica una imagen usando YOLO (detección) + MobileNet (clasificación)"""
     try:
+        from PIL import Image
+        import io
+
         if 'imagen' not in request.files:
-            return jsonify({'error': 'No se recibió ninguna imagen'}), 400
+            return jsonify({'error': 'No se recibió imagen'}), 400
         
         usuario_id = request.form.get('usuario_id')
         if not usuario_id:
-            return jsonify({'error': 'ID de usuario requerido'}), 400
+            return jsonify({'error': 'Usuario requerido'}), 400
         
-        # Leer la imagen
         archivo = request.files['imagen']
         imagen_bytes = archivo.read()
-        
-        # Convertir a formato OpenCV (para YOLO)
         nparr = np.frombuffer(imagen_bytes, np.uint8)
         img_cv2 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
         if img_cv2 is None:
-            return jsonify({'error': 'No se pudo procesar la imagen'}), 400
+            return jsonify({'error': 'No se pudo procesar'}), 400
         
-        # ========== PASO 1: DETECTAR BOTELLA CON YOLO ==========
-        recorte_botella = detectar_y_recortar_botella(img_cv2)
+        recorte = detectar_y_recortar_botella(img_cv2)
         
-        if recorte_botella is None:
-            # No se detectó ninguna botella
+        if recorte is None:
             return jsonify({
                 'status': 'error',
                 'error': 'no_bottle',
-                'mensaje': '📷 No se detectó ninguna botella. Acerca la botella a la cámara, sin otros objetos.'
-            }), 200  # 200 para que el frontend lo maneje como error amigable
+                'mensaje': '📷 No se detectó ninguna botella'
+            }), 200
         
-        # Verificar que el recorte tenga un tamaño mínimo
-        h, w = recorte_botella.shape[:2]
+        h, w = recorte.shape[:2]
         if h < 30 or w < 30:
             return jsonify({
                 'status': 'error',
                 'error': 'bottle_too_small',
-                'mensaje': '🔍 La botella se ve muy pequeña. Acércate más.'
+                'mensaje': '🔍 Botella muy pequeña'
             }), 200
         
-        # ========== PASO 2: CLASIFICAR MATERIAL CON MOBILENET ==========
-        if modelo_mobilenet is None:
+        if modelo_efficientnet is None:
             return jsonify({'error': 'Modelo no cargado'}), 500
         
-        img_para_mobilenet = preprocesar_para_mobilenet(recorte_botella)
-        prediccion = modelo_mobilenet.predict(img_para_mobilenet, verbose=0)
+        img_efficientnet  = preprocesar_para_mobilenet(recorte)
+        prediccion = modelo_efficientnet.predict(img_efficientnet, verbose=0)
         clase_idx = np.argmax(prediccion[0])
         confianza = float(prediccion[0][clase_idx]) * 100
         clase = CLASSES[clase_idx]
         
-        # ========== PASO 3: REGISTRAR EN BASE DE DATOS ==========
         tipo_es = MAPEO.get(clase, clase)
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -442,8 +540,6 @@ def clasificar_webcam():
         
         mapa_nombres = {'glass': 'VIDRIO', 'metal': 'LATA', 'plastic': 'PLÁSTICO'}
         
-        print(f"✅ Clasificado: {tipo_es} con {confianza:.1f}% confianza")
-        
         return jsonify({
             'status': 'ok',
             'tipo': clase,
@@ -451,88 +547,46 @@ def clasificar_webcam():
             'tipo_nombre': mapa_nombres.get(clase, tipo_es.upper()),
             'confianza': round(confianza, 2),
             'puntos': puntos,
-            'puntos_totales': nuevos_puntos,
-            'mensaje': f'Botella de {tipo_es} detectada con {confianza:.1f}% de confianza'
+            'puntos_totales': nuevos_puntos
         }), 200
         
     except Exception as e:
-        print(f"❌ Error en clasificar_webcam: {e}")
+        print(f"❌ Error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# ========== FUNCIÓN PARA LEER EL ARDUINO EN SEGUNDO PLANO ==========
-def leer_arduino():
-    try:
-        arduino = serial.Serial(PUERTO_ARDUINO, VELOCIDAD_ARDUINO, timeout=1)
-        time.sleep(2)
-        print(f"✅ Conectado a Arduino en {PUERTO_ARDUINO}")
-        print("📡 Escuchando al sensor infrarrojo...")
+@app.route('/estado_sensor', methods=['GET'])
+def estado_sensor():
+    return jsonify({
+        'conectado': True,
+        'usuario_id': USUARIO_POR_DEFECTO,
+        'tipo': TIPO_POR_DEFECTO,
+        'tipo_nombre': MAPEO.get(TIPO_POR_DEFECTO, TIPO_POR_DEFECTO)
+    }), 200
 
-        while True:
-            if arduino.in_waiting > 0:
-                linea = arduino.readline().decode('utf-8').strip()
-                print(f"📨 Mensaje recibido: {linea}")
-                
-                if linea == "BOTELLA_DETECTADA":
-                    print("🔴 ¡Botella detectada por sensor infrarrojo!")
-                    
-                    datos_reciclaje = {
-                        "usuario_id": USUARIO_POR_DEFECTO,
-                        "tipo": TIPO_POR_DEFECTO,
-                        "confianza": 99.9
-                    }
-                    
-                    try:
-                        response = requests.post('http://127.0.0.1:5000/reciclar', json=datos_reciclaje)
-                        if response.status_code == 200:
-                            data = response.json()
-                            print(f"✅ Reciclaje registrado exitosamente!")
-                            print(f"   📦 Tipo: {data.get('tipo', TIPO_POR_DEFECTO)}")
-                            print(f"   ⭐ Puntos ganados: {data.get('puntos_ganados', 0)}")
-                            print(f"   🏆 Total acumulado: {data.get('puntos_totales', 0)}")
-                        else:
-                            print(f"❌ Error al registrar reciclaje: {response.status_code}")
-                    except requests.exceptions.ConnectionError:
-                        print("❌ Error: No se pudo conectar al servidor Flask")
-                    except Exception as e:
-                        print(f"❌ Error inesperado: {e}")
-            
-            time.sleep(0.1)
-
-    except serial.SerialException:
-        print(f"❌ No se pudo conectar al Arduino en el puerto {PUERTO_ARDUINO}")
-        print("   Verifica la conexión y el puerto")
-    except Exception as e:
-        print(f"❌ Error inesperado: {e}")
+@app.route('/mi_perfil', methods=['GET'])
+@login_requerido
+def mi_perfil():
+    return jsonify({
+        'id': session.get('usuario_id'),
+        'nombre': session.get('nombre'),
+        'email': session.get('email'),
+        'rol': session.get('rol'),
+        'puntos': session.get('puntos')
+    }), 200
 
 # ========== INICIO DEL SERVIDOR ==========
 if __name__ == '__main__':
     print("=" * 50)
-    print("🌐 SERVIDOR API CON YOLO + MOBILENET")
+    print("🌐 SERVICIO DE RECICLAJE INTELIGENTE")
     print("=" * 50)
-    print("\n📌 Endpoints disponibles:")
-    print("   GET  /                 - Interfaz web")
-    print("   POST /reciclar         - Registrar reciclaje")
-    print("   GET  /usuarios         - Listar usuarios")
-    print("   POST /crear_usuario    - Crear usuario")
-    print("   GET  /ranking          - Top 10 usuarios")
-    print("   GET  /estadisticas/<id> - Estadísticas")
-    print("   DELETE /eliminar_usuario/<id> - Eliminar usuario")
-    print("   DELETE /eliminar_todos_usuarios - Eliminar todos")
-    print("   POST /configurar_sensor - Configurar sensor")
-    print("   GET  /estado_sensor    - Estado del sensor")
-    print("   POST /clasificar_webcam - Clasificar con YOLO + MobileNet")
-    print("\n🔌 Configuración del sensor infrarrojo:")
-    print(f"   Puerto Arduino: {PUERTO_ARDUINO}")
-    print(f"   Usuario por defecto: {USUARIO_POR_DEFECTO}")
-    print(f"   Tipo por defecto: {TIPO_POR_DEFECTO} ({MAPEO.get(TIPO_POR_DEFECTO, TIPO_POR_DEFECTO)})")
-    print("\n🚀 Servidor en http://127.0.0.1:5000")
-    print("🌍 Interfaz web en http://127.0.0.1:5000")
+    print(f"🔌 Arduino: {PUERTO_ARDUINO}")
+    print(f"🚀 Servidor: http://127.0.0.1:5000")
     print("=" * 50)
     
     try:
         hilo_arduino = threading.Thread(target=leer_arduino, daemon=True)
         hilo_arduino.start()
-    except Exception as e:
-        print(f"⚠️ No se pudo iniciar hilo de Arduino: {e}")
+    except:
+        print("⚠️ Arduino no disponible")
     
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>♻️ EcoRecicla - Panel Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div class="theme-toggle">
+        <button id="themeToggle" class="theme-btn"><i class="fas fa-moon"></i></button>
+    </div>
+
+    <div class="container">
+        <!-- NAVBAR ADMIN -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="nav-logo"><i class="fas fa-recycle"></i> EcoRecicla <span class="admin-badge">ADMIN</span></div>
+                <div class="nav-user">
+                    <span><i class="fas fa-user-shield"></i> {{ session.get('nombre', 'Admin') }}</span>
+                    <span class="nav-role">👑 Administrador</span>
+                    <span class="nav-puntos">⭐ {{ session.get('puntos', 0) }} pts</span>
+                    <a href="{{ url_for('logout') }}" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Salir</a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- HEADER ESTADÍSTICAS -->
+        <div class="stats-header">
+            <div class="stat-card"><i class="fas fa-users"></i>
+                <div class="stat-info"><span class="stat-value" id="totalUsuarios">0</span><span class="stat-label-header">Usuarios</span></div>
+            </div>
+            <div class="stat-card"><i class="fas fa-recycle"></i>
+                <div class="stat-info"><span class="stat-value" id="totalReciclajesHoy">0</span><span class="stat-label-header">Reciclajes</span></div>
+            </div>
+            <div class="stat-card"><i class="fas fa-trophy"></i>
+                <div class="stat-info"><span class="stat-value" id="totalPuntosHoy">0</span><span class="stat-label-header">Puntos totales</span></div>
+            </div>
+        </div>
+
+        <!-- PANEL DE ADMINISTRACIÓN -->
+        <div class="admin-grid">
+            <!-- Crear Usuario -->
+            <div class="admin-card">
+                <h4><i class="fas fa-user-plus"></i> Crear Usuario</h4>
+                <div class="form-row">
+                    <input type="text" id="admin_nombre" placeholder="Nombre">
+                    <input type="email" id="admin_email" placeholder="Email">
+                </div>
+                <div class="form-row" style="margin-top:10px;">
+                    <input type="password" id="admin_password" placeholder="Contraseña (opcional)" value="123456">
+                    <select id="admin_rol">
+                        <option value="usuario">Usuario</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <button class="btn-crear" onclick="crearUsuarioAdmin()"><i class="fas fa-plus"></i> Crear</button>
+                </div>
+                <div id="mensaje_admin_crear" class="mensaje-admin"></div>
+            </div>
+
+            <!-- Eliminar Usuario -->
+            <div class="admin-card">
+                <h4><i class="fas fa-trash-alt"></i> Eliminar Usuario</h4>
+                <div class="form-row">
+                    <input type="number" id="admin_eliminar_id" placeholder="ID del usuario">
+                    <button class="btn-danger" onclick="eliminarUsuarioAdmin()"><i class="fas fa-trash"></i> Eliminar</button>
+                </div>
+                <div style="margin-top:10px;">
+                    <button class="btn-danger" onclick="eliminarTodosAdmin()" style="width:100%;"><i class="fas fa-skull-crosswalk"></i> ELIMINAR TODOS (menos admin)</button>
+                </div>
+                <div id="mensaje_admin_eliminar" class="mensaje-admin"></div>
+            </div>
+        </div>
+
+        <!-- RANKING Y LISTA DE USUARIOS -->
+        <div class="dashboard-grid">
+            <div class="tabla-container">
+                <h3><i class="fas fa-trophy"></i> Ranking Global</h3>
+                <div class="ranking-list" id="ranking"><div class="skeleton-loader"></div></div>
+            </div>
+            <div class="tabla-container">
+                <h3><i class="fas fa-users"></i> Lista de Usuarios</h3>
+                <div id="listaUsuariosAdmin"><div class="skeleton-loader"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-logo"><i class="fas fa-recycle"></i> EcoRecicla</div>
+            <p>🔐 Panel de Administración</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        // ========== FUNCIONES ADMIN ==========
+        async function crearUsuarioAdmin() {
+            const nombre = document.getElementById('admin_nombre').value;
+            const email = document.getElementById('admin_email').value;
+            const contrasena = document.getElementById('admin_password').value;
+            const rol = document.getElementById('admin_rol').value;
+            const mensaje = document.getElementById('mensaje_admin_crear');
+
+            if (!nombre || !email) {
+                mensaje.innerHTML = '❌ Completa nombre y email';
+                mensaje.className = 'mensaje-admin error';
+                return;
+            }
+
+            try {
+                const response = await fetch('/crear_usuario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, email, contrasena, rol })
+                });
+                const data = await response.json();
+                if (response.status === 201) {
+                    mensaje.innerHTML = `✅ Usuario ${nombre} creado (ID: ${data.id})`;
+                    mensaje.className = 'mensaje-admin success';
+                    document.getElementById('admin_nombre').value = '';
+                    document.getElementById('admin_email').value = '';
+                    cargarListaUsuariosAdmin();
+                    cargarRanking();
+                    cargarStatsHeader();
+                } else {
+                    mensaje.innerHTML = `❌ ${data.error}`;
+                    mensaje.className = 'mensaje-admin error';
+                }
+            } catch (error) {
+                mensaje.innerHTML = '❌ Error al crear usuario';
+                mensaje.className = 'mensaje-admin error';
+            }
+            setTimeout(() => { mensaje.innerHTML = ''; mensaje.className = 'mensaje-admin'; }, 5000);
+        }
+
+        async function eliminarUsuarioAdmin() {
+            const usuarioId = document.getElementById('admin_eliminar_id').value;
+            const mensaje = document.getElementById('mensaje_admin_eliminar');
+
+            if (!usuarioId) {
+                mensaje.innerHTML = '❌ Ingresa un ID';
+                mensaje.className = 'mensaje-admin error';
+                return;
+            }
+            if (!confirm(`⚠️ ¿Eliminar usuario ID ${usuarioId}?`)) return;
+
+            try {
+                const response = await fetch(`/eliminar_usuario/${usuarioId}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (response.ok) {
+                    mensaje.innerHTML = `✅ ${data.mensaje}`;
+                    mensaje.className = 'mensaje-admin success';
+                    document.getElementById('admin_eliminar_id').value = '';
+                    cargarListaUsuariosAdmin();
+                    cargarRanking();
+                    cargarStatsHeader();
+                } else {
+                    mensaje.innerHTML = `❌ ${data.error}`;
+                    mensaje.className = 'mensaje-admin error';
+                }
+            } catch (error) {
+                mensaje.innerHTML = '❌ Error al eliminar';
+                mensaje.className = 'mensaje-admin error';
+            }
+            setTimeout(() => { mensaje.innerHTML = ''; mensaje.className = 'mensaje-admin'; }, 5000);
+        }
+
+        async function eliminarTodosAdmin() {
+            if (!confirm('⚠️⚠️⚠️ ¿ELIMINAR TODOS LOS USUARIOS (excepto admin)? Esta acción NO se puede deshacer ⚠️⚠️⚠️')) return;
+            if (!confirm('ÚLTIMA OPORTUNIDAD - ¿Estás SEGURO?')) return;
+
+            try {
+                const response = await fetch('/eliminar_todos_usuarios', { method: 'DELETE' });
+                const data = await response.json();
+                const mensaje = document.getElementById('mensaje_admin_eliminar');
+                if (response.ok) {
+                    mensaje.innerHTML = `✅ ${data.mensaje}`;
+                    mensaje.className = 'mensaje-admin success';
+                    cargarListaUsuariosAdmin();
+                    cargarRanking();
+                    cargarStatsHeader();
+                } else {
+                    mensaje.innerHTML = `❌ ${data.error}`;
+                    mensaje.className = 'mensaje-admin error';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function cargarListaUsuariosAdmin() {
+            try {
+                const response = await fetch('/usuarios');
+                const usuarios = await response.json();
+                const container = document.getElementById('listaUsuariosAdmin');
+                if (!response.ok || usuarios.length === 0) {
+                    container.innerHTML = '<p class="empty-msg">📭 No hay usuarios</p>';
+                    return;
+                }
+                let html = '<div class="ranking-list">';
+                usuarios.forEach(u => {
+                    const rolBadge = u.rol === 'admin' ? '👑' : '👤';
+                    html += `<div class="ranking-item"><div class="ranking-position">${rolBadge}</div><div class="ranking-name">${u.nombre}</div><div class="ranking-points">⭐ ${u.puntos} pts</div><div class="ranking-reciclajes">ID: ${u.id}</div></div>`;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Sobrescribir funciones para que actualicen también la lista de admin
+        const originalCargarListaUsuarios = window.cargarListaUsuarios;
+        const originalCargarRanking = window.cargarRanking;
+        const originalCargarStatsHeader = window.cargarStatsHeader;
+
+        window.cargarListaUsuarios = async function() {
+            if (originalCargarListaUsuarios) await originalCargarListaUsuarios();
+            if (document.getElementById('listaUsuariosAdmin')) {
+                await cargarListaUsuariosAdmin();
+            }
+        };
+
+        window.cargarRanking = async function() {
+            if (originalCargarRanking) await originalCargarRanking();
+        };
+
+        window.cargarStatsHeader = async function() {
+            if (originalCargarStatsHeader) await originalCargarStatsHeader();
+            try {
+                const response = await fetch('/usuarios');
+                const usuarios = await response.json();
+                if (response.ok) {
+                    document.getElementById('totalUsuarios').textContent = usuarios.length;
+                }
+            } catch (error) {}
+        };
+
+        // Cargar al iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.getElementById('listaUsuariosAdmin')) {
+                cargarListaUsuariosAdmin();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -263,4 +263,24 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    from sklearn.metrics import confusion_matrix
+import seaborn as sns
+
+# Predecir todas las imágenes de validación
+val_predictions = model.predict(val_generator)
+val_pred_classes = np.argmax(val_predictions, axis=1)
+val_true_classes = val_generator.classes
+
+# Generar matriz de confusión
+cm = confusion_matrix(val_true_classes, val_pred_classes)
+
+# Graficar
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.title('Matriz de Confusión')
+plt.ylabel('Real')
+plt.xlabel('Predicción')
+plt.savefig('modelos_guardados/matriz_confusion.png')
+plt.show()
     

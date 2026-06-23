@@ -78,13 +78,11 @@ function restaurarUsuarioSeleccionado() {
     const select = document.getElementById('usuario_id');
     
     if (usuarioGuardado && select) {
-        // Buscar si el usuario existe en las opciones actuales
         const opcionExiste = Array.from(select.options).some(opt => opt.value == usuarioGuardado);
         if (opcionExiste) {
             select.value = usuarioGuardado;
             cargarEstadisticas();
             
-            // También actualizar el selector de estadísticas
             const selectorEst = document.getElementById('selector_usuario');
             if (selectorEst && Array.from(selectorEst.options).some(opt => opt.value == usuarioGuardado)) {
                 selectorEst.value = usuarioGuardado;
@@ -138,7 +136,6 @@ async function cargarListaUsuarios() {
         const select = document.getElementById('usuario_id');
         if (!select) return;
         
-        // 🔥 GUARDAR EL VALOR ACTUAL ANTES DE MODIFICAR EL SELECT
         const valorActual = select.value;
         
         if (usuarios.length === 0) {
@@ -146,13 +143,11 @@ async function cargarListaUsuarios() {
             return;
         }
         
-        // Recargar las opciones
         select.innerHTML = '<option value="">-- Selecciona un usuario --</option>';
         usuarios.forEach(usuario => {
             select.innerHTML += `<option value="${usuario.id}">${usuario.nombre} (⭐ ${usuario.puntos} pts)</option>`;
         });
         
-        // 🔥 PRIORIDAD: 1º usuario guardado, 2º valor actual, 3º primer usuario
         const usuarioGuardado = localStorage.getItem('usuarioSeleccionado');
         
         if (usuarioGuardado && usuarios.some(u => u.id == usuarioGuardado)) {
@@ -163,12 +158,10 @@ async function cargarListaUsuarios() {
             select.value = usuarios[0].id;
         }
         
-        // Solo cargar estadísticas si es necesario
         if (select.value && select.value !== '') {
             cargarEstadisticas();
         }
         
-        // Cargar el selector de estadísticas también
         const selectorEstadisticas = document.getElementById('selector_usuario');
         if (selectorEstadisticas) {
             const valorActualEst = selectorEstadisticas.value;
@@ -351,7 +344,10 @@ async function eliminarTodosUsuarios() {
     }
 }
 
-// ========== CÁMARA ==========
+// ================================================================
+// 🔥 CÁMARA - VERSIÓN MEJORADA (CON DETECCIÓN DE ENLACE MÓVIL)
+// ================================================================
+
 async function activarCamara() {
     const video = document.getElementById('videoCamara');
     const preview = document.getElementById('camaraPreview');
@@ -369,17 +365,94 @@ async function activarCamara() {
         return;
     }
     
+    console.log('👤 Usuario activo ID:', usuario_id);
+    
     try {
-        streamCamara = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        // 🔥 1. OBTENER LISTA DE CÁMARAS DISPONIBLES
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        
+        console.log('📷 Cámaras disponibles:');
+        videoDevices.forEach((d, i) => console.log(`   ${i+1}. ${d.label}`));
+        
+        // 🔥 2. BUSCAR CÁMARA QUE NO SEA OBS (ENLACE MÓVIL O CÁMARA REAL)
+        let deviceId = null;
+        let nombreCamara = '';
+        
+        // Intentar encontrar Enlace Móvil o cámara real
+        const camaraReal = videoDevices.find(d => 
+            !d.label.toLowerCase().includes('obs') && 
+            !d.label.toLowerCase().includes('virtual') &&
+            !d.label.toLowerCase().includes('screen')
+        );
+        
+        if (camaraReal) {
+            deviceId = camaraReal.deviceId;
+            nombreCamara = camaraReal.label;
+            console.log('📱 Usando cámara:', nombreCamara);
+        } else if (videoDevices.length > 0) {
+            deviceId = videoDevices[0].deviceId;
+            nombreCamara = videoDevices[0].label;
+            console.log('📷 Usando primera cámara disponible:', nombreCamara);
+        }
+        
+        if (!deviceId) {
+            throw new Error('No se encontró ninguna cámara');
+        }
+        
+        // 🔥 3. SOLICITAR ACCESO CON EL DEVICE ID ESPECÍFICO
+        streamCamara = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                deviceId: { exact: deviceId },
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            } 
+        });
+        
         video.srcObject = streamCamara;
         preview.style.display = 'block';
         btnActivar.style.display = 'none';
         btnDetener.style.display = 'flex';
-        await new Promise((resolve) => { video.onloadedmetadata = () => { video.play(); resolve(); }; });
+        
+        await new Promise((resolve) => { 
+            video.onloadedmetadata = () => { 
+                video.play(); 
+                resolve(); 
+            }; 
+        });
+        
         iniciarDeteccionAutomatica();
-        mostrarNotificacion('🎥 Escaneo automático activado', 'success');
+        mostrarNotificacion(`🎥 Cámara activada: ${nombreCamara || 'correctamente'}`, 'success');
+        
     } catch (error) {
-        mostrarNotificacion('❌ No se pudo acceder a la cámara', 'error');
+        console.error('❌ Error al activar cámara:', error);
+        
+        // 🔥 4. SI FALLA, INTENTAR CON facingMode (modo compatibilidad)
+        try {
+            console.log('🔄 Intentando con facingMode: environment...');
+            streamCamara = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } 
+            });
+            
+            video.srcObject = streamCamara;
+            preview.style.display = 'block';
+            btnActivar.style.display = 'none';
+            btnDetener.style.display = 'flex';
+            
+            await new Promise((resolve) => { 
+                video.onloadedmetadata = () => { 
+                    video.play(); 
+                    resolve(); 
+                }; 
+            });
+            
+            iniciarDeteccionAutomatica();
+            mostrarNotificacion('🎥 Cámara activada (modo compatibilidad)', 'success');
+            
+        } catch (error2) {
+            console.error('❌ Error final:', error2);
+            mostrarNotificacion('❌ No se pudo acceder a la cámara: ' + error2.message, 'error');
+        }
     }
 }
 
@@ -417,14 +490,23 @@ function detenerDeteccionAutomatica() {
     isAutoDetecting = false;
 }
 
+// 🔥 TOMAR FOTO - VERSIÓN MEJORADA
 async function tomarFotoAutomatica() {
     const video = document.getElementById('videoCamara');
     const canvas = document.getElementById('canvasCamara');
     const usuario_id = document.getElementById('usuario_id').value;
     const overlay = document.getElementById('previewOverlay');
     
-    if (!usuario_id) { detenerCamara(); return; }
-    if (!video || !canvas || !video.videoWidth) return;
+    if (!usuario_id) { 
+        console.error('❌ No hay usuario_id, deteniendo cámara');
+        detenerCamara(); 
+        return; 
+    }
+    
+    if (!video || !canvas || !video.videoWidth) {
+        console.error('❌ Video no disponible');
+        return;
+    }
     
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;

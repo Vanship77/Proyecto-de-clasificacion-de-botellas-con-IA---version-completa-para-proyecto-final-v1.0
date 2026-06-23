@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>♻️ EcoRecicla - Iniciar Sesión</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <i class="fas fa-recycle auth-icon"></i>
+                <h1>♻️ EcoRecicla</h1>
+                <p>Clasificación inteligente de residuos</p>
+            </div>
+            <div class="auth-body">
+                <div id="mensajeLogin" class="mensaje-auth"></div>
+                <div class="form-group">
+                    <label><i class="fas fa-envelope"></i> Correo electrónico</label>
+                    <input type="email" id="login_email" placeholder="tu@email.com">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> Contraseña</label>
+                    <input type="password" id="login_password" placeholder="••••••••">
+                </div>
+                <button class="btn-auth" onclick="iniciarSesion()"><i class="fas fa-sign-in-alt"></i> INICIAR SESIÓN</button>
+                <p class="auth-link">¿No tienes cuenta? <a href="{{ url_for('registro_page') }}">Regístrate aquí</a></p>
+            </div>
+        </div>
+    </div>
+    <script>
+        async function iniciarSesion() {
+            const email = document.getElementById('login_email').value;
+            const password = document.getElementById('login_password').value;
+            const mensaje = document.getElementById('mensajeLogin');
+            if (!email || !password) { mensaje.innerHTML = '<p style="color: #e74c3c;">❌ Completa todos los campos</p>'; return; }
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, contrasena: password })
+                });
+                const data = await response.json();
+                if (response.ok && data.status === 'ok') {
+                    window.location.href = data.usuario.rol === 'admin' ? '/admin' : '/dashboard';
+                } else {
+                    mensaje.innerHTML = `<p style="color: #e74c3c;">❌ ${data.error || 'Error al iniciar sesión'}</p>`;
+                }
+            } catch (error) {
+                mensaje.innerHTML = '<p style="color: #e74c3c;">❌ Error al iniciar sesión</p>';
+            }
+        }
+        document.getElementById('login_password').addEventListener('keypress', e => { if (e.key === 'Enter') iniciarSesion(); });
+    </script>
+</body>
+</html>
