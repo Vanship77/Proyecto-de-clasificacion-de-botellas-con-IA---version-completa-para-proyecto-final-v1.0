@@ -1,16 +1,36 @@
 # src/api/servidor.py
 from flask import Flask, request, jsonify
-from bd.conexion import Database
 from src.bd.conexion import Database
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
+from tensorflow.keras.applications.efficientnet import preprocess_input
 import numpy as np
 import os
 
 app = Flask(__name__)
 
-# Cargar modelo entrenado
-modelo = tf.keras.models.load_model('modelos_guardados/clasificador_botellas.h5')
+# ========== CARGAR MODELO EFFICIENTNETB0 ==========
+print("🔄 Cargando modelo EfficientNetB0...")
+
+rutas_modelo = [
+    'modelo_residuos.keras',
+    'modelos_guardados/clasificador_efficientnet.keras'
+]
+
+modelo = None
+for ruta in rutas_modelo:
+    if os.path.exists(ruta):
+        try:
+            modelo = tf.keras.models.load_model(ruta)
+            print(f"✅ Modelo EfficientNetB0 cargado desde: {ruta}")
+            break
+        except Exception as e:
+            print(f"⚠️ Error cargando {ruta}: {e}")
+
+if modelo is None:
+    print("❌ No se encontró modelo EfficientNetB0")
+    print("   Ejecuta: python entrenar_modelo.py")
+
 CLASSES = ['glass', 'metal', 'plastic']
 
 # Mapeo de clases en inglés a español
@@ -20,9 +40,26 @@ MAPEO = {
     'plastic': 'plastico'
 }
 
+MAPEO_DISPLAY = {
+    'glass': 'VIDRIO',
+    'metal': 'LATA',
+    'plastic': 'PLÁSTICO'
+}
+
 # Conectar a la base de datos
 db = Database()
 db.conectar()
+
+def preprocesar_imagen(imagen_cv2):
+    """Preprocesa imagen para EfficientNetB0"""
+    # Convertir BGR a RGB
+    img_rgb = cv2.cvtColor(imagen_cv2, cv2.COLOR_BGR2RGB)
+    # Redimensionar
+    img_resized = cv2.resize(img_rgb, (224, 224))
+    # Convertir a array y normalizar
+    img_array = np.array(img_resized, dtype=np.float32)
+    img_array = preprocess_input(img_array)  # Normalización correcta
+    return np.expand_dims(img_array, axis=0)
 
 @app.route('/reciclar', methods=['POST'])
 def registrar_reciclaje():
@@ -81,6 +118,86 @@ def registrar_reciclaje():
             'status': 'ok',
             'mensaje': f'¡Reciclaste {tipo_es}! Ganaste {puntos} puntos',
             'puntos_ganados': puntos,
+            'puntos_totales': nuevos_puntos,
+            'tipo': tipo_es
+        }), 200
+
+    except Exception as e:
+        db.conn.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/clasificar', methods=['POST'])
+def clasificar_imagen():
+    """
+    Endpoint para clasificar una imagen desde el frontend
+    """
+    try:
+        if 'imagen' not in request.files:
+            return jsonify({'error': 'No se recibió imagen'}), 400
+
+        usuario_id = request.form.get('usuario_id')
+        if not usuario_id:
+            return jsonify({'error': 'Usuario requerido'}), 400
+
+        archivo = request.files['imagen']
+        imagen_bytes = archivo.read()
+        nparr = np.frombuffer(imagen_bytes, np.uint8)
+        img_cv2 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if img_cv2 is None:
+            return jsonify({'error': 'No se pudo procesar la imagen'}), 400
+
+        if modelo is None:
+            return jsonify({'error': 'Modelo no cargado'}), 500
+
+        # Preprocesar y clasificar
+        img_procesada = preprocesar_imagen(img_cv2)
+        prediccion = modelo.predict(img_procesada, verbose=0)
+        clase_idx = np.argmax(prediccion[0])
+        confianza = float(prediccion[0][clase_idx]) * 100
+        clase = CLASSES[clase_idx]
+
+        if confianza < 75:
+            return jsonify({
+                'status': 'error',
+                'error': 'baja_confianza',
+                'mensaje': f'⚠️ Confianza baja: {confianza:.1f}%'
+            }), 200
+
+        tipo_es = MAPEO.get(clase, clase)
+
+        # Registrar en BD
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT puntos_base FROM tipos_residuo WHERE nombre = %s", (tipo_es,))
+        resultado = cursor.fetchone()
+
+        if not resultado:
+            return jsonify({'error': 'Tipo no válido'}), 400
+
+        puntos = resultado[0]
+
+        cursor.execute("""
+            INSERT INTO registros_reciclaje (id_usuario, id_tipo_residuo, puntos_ganados, confianza_ia)
+            VALUES (%s, (SELECT id FROM tipos_residuo WHERE nombre = %s), %s, %s)
+            RETURNING id
+        """, (usuario_id, tipo_es, puntos, confianza / 100))
+
+        cursor.execute("""
+            UPDATE usuarios SET puntos_totales = puntos_totales + %s
+            WHERE id = %s
+            RETURNING puntos_totales
+        """, (puntos, usuario_id))
+
+        nuevos_puntos = cursor.fetchone()[0]
+        db.conn.commit()
+
+        return jsonify({
+            'status': 'ok',
+            'tipo': clase,
+            'tipo_es': tipo_es,
+            'tipo_nombre': MAPEO_DISPLAY.get(clase, tipo_es.upper()),
+            'confianza': round(confianza, 2),
+            'puntos': puntos,
             'puntos_totales': nuevos_puntos
         }), 200
 
@@ -186,14 +303,17 @@ def crear_usuario():
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("🌐 SERVIDOR API PARA ARDUINO")
+    print("🌐 SERVIDOR API PARA RECICLAJE")
     print("=" * 50)
     print("\n📌 Endpoints disponibles:")
-    print("   POST   /reciclar     - Registrar reciclaje")
-    print("   GET    /usuarios     - Listar usuarios")
-    print("   GET    /usuario/<id> - Obtener usuario")
-    print("   GET    /ranking      - Top 10 usuarios")
-    print("   POST   /crear_usuario - Crear usuario")
+    print("   POST   /reciclar        - Registrar reciclaje (Arduino)")
+    print("   POST   /clasificar      - Clasificar imagen (Web)")
+    print("   GET    /usuarios        - Listar usuarios")
+    print("   GET    /usuario/<id>    - Obtener usuario")
+    print("   GET    /ranking         - Top 10 usuarios")
+    print("   POST   /crear_usuario   - Crear usuario")
     print("\n🚀 Servidor iniciado en http://127.0.0.1:5000")
     print("   Presiona Ctrl+C para detener")
     print("=" * 50)
+
+    app.run(host='0.0.0.0', port=5000, debug=True)

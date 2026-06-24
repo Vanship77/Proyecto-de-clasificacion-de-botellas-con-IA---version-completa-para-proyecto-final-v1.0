@@ -1,9 +1,10 @@
-# api.py - Servidor API con YOLO + MobileNet + Login + Roles + Sensor automático
+# api.py - Servidor API con EfficientNetB0 + Login + Roles + Sensor automático
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from functools import wraps
 import psycopg2
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
+from tensorflow.keras.applications.efficientnet import preprocess_input
 import numpy as np
 import os
 import serial
@@ -13,13 +14,12 @@ import requests
 from PIL import Image
 import io
 import cv2
-from ultralytics import YOLO
 import hashlib
 import secrets
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-app.secret_key = 'tu_clave_secreta_muy_segura_123456789'  # CAMBIAR EN PRODUCCIÓN
+app.secret_key = 'tu_clave_secreta_muy_segura_123456789'
 
 # ========== CONFIGURACIÓN ==========
 PUERTO_ARDUINO = 'COM3'
@@ -37,10 +37,9 @@ DB_CONFIG = {
 
 # ========== FUNCIÓN DE HASH PARA CONTRASEÑAS ==========
 def hash_contrasena(contrasena):
-    """Genera un hash SHA-256 de la contraseña"""
     return hashlib.sha256(contrasena.encode()).hexdigest()
 
-# ========== DECORADOR PARA VERIFICAR SESIÓN ==========
+# ========== DECORADORES ==========
 def login_requerido(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -59,60 +58,57 @@ def admin_requerido(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# ========== CARGAR MODELOS ==========
-print("🔄 Cargando modelos...")
-try:
-    modelo_yolo = YOLO('yolov8n.pt')
-    print("✅ YOLO cargado")
-except:
-    modelo_yolo = None
-    print("⚠️ YOLO no disponible")
+# ========== CARGAR MODELO EFFICIENTNETB0 ==========
+print("🔄 Cargando modelo EfficientNetB0...")
 
-try:
-    # Cargar EfficientNetB0
-    modelo_efficientnet = tf.keras.models.load_model('modelos_guardados/clasificador_efficientnet.h5')
-    print("✅ EfficientNetB0 cargado")
-except:
-    modelo_efficientnet = None
-    print("⚠️ EfficientNetB0 no disponible")
+# Intentar cargar el modelo
+rutas_modelo = [
+    'modelo_residuos.keras',
+    'modelos_guardados/clasificador_efficientnet.keras'
+]
+
+modelo_efficientnet = None
+for ruta in rutas_modelo:
+    if os.path.exists(ruta):
+        try:
+            modelo_efficientnet = tf.keras.models.load_model(ruta)
+            print(f"✅ EfficientNetB0 cargado desde: {ruta}")
+            break
+        except Exception as e:
+            print(f"⚠️ Error cargando {ruta}: {e}")
+
+if modelo_efficientnet is None:
+    print("❌ No se encontró modelo EfficientNetB0")
+    print("   Ejecuta: python entrenar_modelo.py")
 
 CLASSES = ['glass', 'metal', 'plastic']
 MAPEO = {'glass': 'vidrio', 'metal': 'lata', 'plastic': 'plastico'}
+MAPEO_DISPLAY = {'glass': 'VIDRIO', 'metal': 'LATA', 'plastic': 'PLÁSTICO'}
 
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
 
-# ========== FUNCIONES DE DETECCIÓN ==========
-def detectar_y_recortar_botella(imagen_cv2):
-    if modelo_yolo is None:
-        return imagen_cv2
-    
-    h, w = imagen_cv2.shape[:2]
-    if w > 640:
-        escala = 640 / w
-        imagen_cv2 = cv2.resize(imagen_cv2, (640, int(h * escala)))
-    
-    resultados = modelo_yolo(imagen_cv2, verbose=False)
-    mejor_botella = None
-    mejor_confianza = 0
-    
-    for caja in resultados[0].boxes:
-        clase = int(caja.cls[0])
-        confianza = float(caja.conf[0])
-        if clase == 39 and confianza > 0.5 and confianza > mejor_confianza:
-            mejor_confianza = confianza
-            x1, y1, x2, y2 = map(int, caja.xyxy[0])
-            x1, y1 = max(0, x1), max(0, y1)
-            x2, y2 = min(imagen_cv2.shape[1], x2), min(imagen_cv2.shape[0], y2)
-            mejor_botella = imagen_cv2[y1:y2, x1:x2]
-    
-    return mejor_botella
-
-def preprocesar_para_mobilenet(imagen_cv2):
+# ========== FUNCIONES DE CLASIFICACIÓN ==========
+def preprocesar_para_efficientnet(imagen_cv2):
+    """Preprocesa imagen para EfficientNetB0"""
     img_rgb = cv2.cvtColor(imagen_cv2, cv2.COLOR_BGR2RGB)
     img_resized = cv2.resize(img_rgb, (224, 224))
-    img_array = np.array(img_resized) / 255.0
+    img_array = np.array(img_resized, dtype=np.float32)
+    img_array = preprocess_input(img_array)  # Normalización correcta
     return np.expand_dims(img_array, axis=0)
+
+def clasificar_botella(imagen_cv2):
+    """Clasifica una botella usando EfficientNetB0"""
+    if modelo_efficientnet is None:
+        return None, 0.0, None
+    
+    img_procesada = preprocesar_para_efficientnet(imagen_cv2)
+    prediccion = modelo_efficientnet.predict(img_procesada, verbose=0)
+    clase_idx = np.argmax(prediccion[0])
+    confianza = float(prediccion[0][clase_idx]) * 100
+    clase = CLASSES[clase_idx]
+    
+    return clase, confianza, prediccion[0]
 
 # ========== FUNCIÓN PARA ARDUINO ==========
 def leer_arduino():
@@ -130,15 +126,15 @@ def leer_arduino():
                     print("🔴 ¡Botella detectada!")
                     datos = {"usuario_id": USUARIO_POR_DEFECTO, "tipo": TIPO_POR_DEFECTO, "confianza": 99.9}
                     try:
-                        r = requests.post('http://127.0.0.1:5000/reciclar', json=datos)
+                        r = requests.post('http://127.0.0.1:5000/reciclar', json=datos, timeout=2)
                         if r.status_code == 200:
                             data = r.json()
                             print(f"✅ +{data.get('puntos_ganados', 0)} pts")
                     except:
                         pass
             time.sleep(0.1)
-    except:
-        print(f"❌ No se pudo conectar a Arduino en {PUERTO_ARDUINO}")
+    except Exception as e:
+        print(f"⚠️ Arduino no disponible: {e}")
 
 # ========== RUTAS DE AUTENTICACIÓN ==========
 @app.route('/login')
@@ -253,7 +249,7 @@ def dashboard():
 def admin_panel():
     return render_template('dashboard_admin.html')
 
-# ========== ENDPOINTS EXISTENTES (CON PROTECCIÓN) ==========
+# ========== ENDPOINTS ==========
 @app.route('/reciclar', methods=['POST'])
 def registrar_reciclaje():
     try:
@@ -466,10 +462,8 @@ def eliminar_todos_usuarios():
 
 @app.route('/clasificar_webcam', methods=['POST'])
 def clasificar_webcam():
+    """Clasifica una imagen de webcam usando EfficientNetB0 (SIN YOLO)"""
     try:
-        from PIL import Image
-        import io
-
         if 'imagen' not in request.files:
             return jsonify({'error': 'No se recibió imagen'}), 400
         
@@ -485,33 +479,25 @@ def clasificar_webcam():
         if img_cv2 is None:
             return jsonify({'error': 'No se pudo procesar'}), 400
         
-        recorte = detectar_y_recortar_botella(img_cv2)
-        
-        if recorte is None:
-            return jsonify({
-                'status': 'error',
-                'error': 'no_bottle',
-                'mensaje': '📷 No se detectó ninguna botella'
-            }), 200
-        
-        h, w = recorte.shape[:2]
-        if h < 30 or w < 30:
-            return jsonify({
-                'status': 'error',
-                'error': 'bottle_too_small',
-                'mensaje': '🔍 Botella muy pequeña'
-            }), 200
-        
         if modelo_efficientnet is None:
             return jsonify({'error': 'Modelo no cargado'}), 500
         
-        img_efficientnet  = preprocesar_para_mobilenet(recorte)
-        prediccion = modelo_efficientnet.predict(img_efficientnet, verbose=0)
-        clase_idx = np.argmax(prediccion[0])
-        confianza = float(prediccion[0][clase_idx]) * 100
-        clase = CLASSES[clase_idx]
+        # Clasificar directamente con EfficientNetB0 (SIN YOLO)
+        clase, confianza, probabilidades = clasificar_botella(img_cv2)
+        
+        if clase is None:
+            return jsonify({'error': 'Error en clasificación'}), 500
+        
+        if confianza < 75:  # Umbral del 75%
+            return jsonify({
+                'status': 'error',
+                'error': 'baja_confianza',
+                'mensaje': f'⚠️ Confianza baja: {confianza:.1f}%'
+            }), 200
         
         tipo_es = MAPEO.get(clase, clase)
+        
+        # Registrar en BD
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -538,13 +524,11 @@ def clasificar_webcam():
         conn.commit()
         conn.close()
         
-        mapa_nombres = {'glass': 'VIDRIO', 'metal': 'LATA', 'plastic': 'PLÁSTICO'}
-        
         return jsonify({
             'status': 'ok',
             'tipo': clase,
             'tipo_es': tipo_es,
-            'tipo_nombre': mapa_nombres.get(clase, tipo_es.upper()),
+            'tipo_nombre': MAPEO_DISPLAY.get(clase, tipo_es.upper()),
             'confianza': round(confianza, 2),
             'puntos': puntos,
             'puntos_totales': nuevos_puntos

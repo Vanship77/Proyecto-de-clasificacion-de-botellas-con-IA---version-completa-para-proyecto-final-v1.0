@@ -1,0 +1,18 @@
+{
+  "clases": [
+    "glass",
+    "metal",
+    "plastic"
+  ],
+  "tamano_imagen": [
+    224,
+    224
+  ],
+  "exactitud": 0.9375,
+  "perdida": 0.19712495803833008,
+  "conteo_imagenes": {
+    "glass": 501,
+    "metal": 410,
+    "plastic": 482
+  }
+}
