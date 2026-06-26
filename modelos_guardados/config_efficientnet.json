@@ -8,8 +8,8 @@
     224,
     224
   ],
-  "exactitud": 0.9375,
-  "perdida": 0.19712495803833008,
+  "exactitud": 0.9419642686843872,
+  "perdida": 0.17430700361728668,
   "conteo_imagenes": {
     "glass": 501,
     "metal": 410,

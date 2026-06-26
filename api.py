@@ -2,6 +2,7 @@
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from functools import wraps
 import psycopg2
+import psycopg2.extras
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.efficientnet import preprocess_input
@@ -61,7 +62,6 @@ def admin_requerido(f):
 # ========== CARGAR MODELO EFFICIENTNETB0 ==========
 print("🔄 Cargando modelo EfficientNetB0...")
 
-# Intentar cargar el modelo
 rutas_modelo = [
     'modelo_residuos.keras',
     'modelos_guardados/clasificador_efficientnet.keras'
@@ -85,20 +85,21 @@ CLASSES = ['glass', 'metal', 'plastic']
 MAPEO = {'glass': 'vidrio', 'metal': 'lata', 'plastic': 'plastico'}
 MAPEO_DISPLAY = {'glass': 'VIDRIO', 'metal': 'LATA', 'plastic': 'PLÁSTICO'}
 
+# ========== CONEXIÓN A BD CON UTF-8 ==========
 def get_db_connection():
-    return psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(**DB_CONFIG)
+    conn.set_client_encoding('UTF8')
+    return conn
 
 # ========== FUNCIONES DE CLASIFICACIÓN ==========
 def preprocesar_para_efficientnet(imagen_cv2):
-    """Preprocesa imagen para EfficientNetB0"""
     img_rgb = cv2.cvtColor(imagen_cv2, cv2.COLOR_BGR2RGB)
     img_resized = cv2.resize(img_rgb, (224, 224))
     img_array = np.array(img_resized, dtype=np.float32)
-    img_array = preprocess_input(img_array)  # Normalización correcta
+    img_array = preprocess_input(img_array)
     return np.expand_dims(img_array, axis=0)
 
 def clasificar_botella(imagen_cv2):
-    """Clasifica una botella usando EfficientNetB0"""
     if modelo_efficientnet is None:
         return None, 0.0, None
     
@@ -156,6 +157,8 @@ def api_login():
         email = datos.get('email')
         contrasena = datos.get('contrasena')
         
+        print(f"🔍 Intentando login: {email}")
+        
         if not email or not contrasena:
             return jsonify({'error': 'Email y contraseña requeridos'}), 400
         
@@ -169,11 +172,18 @@ def api_login():
         conn.close()
         
         if not usuario:
+            print(f"❌ Usuario no encontrado: {email}")
             return jsonify({'error': 'Credenciales incorrectas'}), 401
         
         contrasena_hash = hash_contrasena(contrasena)
+        print(f"🔍 Hash ingresado: {contrasena_hash}")
+        print(f"🔍 Hash en BD:     {usuario[3]}")
+        
         if usuario[3] != contrasena_hash:
+            print(f"❌ Contraseña incorrecta para: {email}")
             return jsonify({'error': 'Credenciales incorrectas'}), 401
+        
+        print(f"✅ Login exitoso: {email}")
         
         session['usuario_id'] = usuario[0]
         session['nombre'] = usuario[1]
@@ -192,6 +202,7 @@ def api_login():
             }
         }), 200
     except Exception as e:
+        print(f"❌ Error en login: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/registro', methods=['POST'])
@@ -201,6 +212,8 @@ def api_registro():
         nombre = datos.get('nombre')
         email = datos.get('email')
         contrasena = datos.get('contrasena')
+        
+        print(f"📝 Registrando: {nombre}, {email}")
         
         if not nombre or not email or not contrasena:
             return jsonify({'error': 'Todos los campos son requeridos'}), 400
@@ -212,6 +225,12 @@ def api_registro():
         
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        cursor.execute("SELECT id FROM usuarios WHERE email = %s", (email,))
+        if cursor.fetchone():
+            conn.close()
+            return jsonify({'error': 'El email ya está registrado'}), 400
+        
         cursor.execute("""
             INSERT INTO usuarios (nombre, email, contrasena, rol, puntos_totales)
             VALUES (%s, %s, %s, 'usuario', 0) RETURNING id
@@ -221,10 +240,12 @@ def api_registro():
         conn.commit()
         conn.close()
         
+        print(f"✅ Usuario registrado: ID {usuario_id}")
+        
         return jsonify({'status': 'ok', 'mensaje': 'Usuario registrado', 'id': usuario_id}), 201
+        
     except Exception as e:
-        if 'duplicate key' in str(e).lower():
-            return jsonify({'error': 'El email ya está registrado'}), 400
+        print(f"❌ ERROR EN REGISTRO: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/logout')
@@ -460,9 +481,10 @@ def eliminar_todos_usuarios():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ========== ENDPOINT CLASIFICAR WEBCAM ==========
 @app.route('/clasificar_webcam', methods=['POST'])
 def clasificar_webcam():
-    """Clasifica una imagen de webcam usando EfficientNetB0 (SIN YOLO)"""
+    """Clasifica una imagen usando EfficientNetB0"""
     try:
         if 'imagen' not in request.files:
             return jsonify({'error': 'No se recibió imagen'}), 400
@@ -482,22 +504,25 @@ def clasificar_webcam():
         if modelo_efficientnet is None:
             return jsonify({'error': 'Modelo no cargado'}), 500
         
-        # Clasificar directamente con EfficientNetB0 (SIN YOLO)
-        clase, confianza, probabilidades = clasificar_botella(img_cv2)
+        clase, confianza, _ = clasificar_botella(img_cv2)
         
         if clase is None:
-            return jsonify({'error': 'Error en clasificación'}), 500
+            return jsonify({
+                'status': 'error',
+                'error': 'no_bottle',
+                'mensaje': 'No se detectó ninguna botella'
+            }), 200
         
-        if confianza < 75:  # Umbral del 75%
+        if confianza < 50:
             return jsonify({
                 'status': 'error',
                 'error': 'baja_confianza',
-                'mensaje': f'⚠️ Confianza baja: {confianza:.1f}%'
+                'mensaje': f'⚠️ Confianza baja: {confianza:.1f}%',
+                'confianza': round(confianza, 2)
             }), 200
         
         tipo_es = MAPEO.get(clase, clase)
         
-        # Registrar en BD
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -531,7 +556,8 @@ def clasificar_webcam():
             'tipo_nombre': MAPEO_DISPLAY.get(clase, tipo_es.upper()),
             'confianza': round(confianza, 2),
             'puntos': puntos,
-            'puntos_totales': nuevos_puntos
+            'puntos_totales': nuevos_puntos,
+            'modelo': 'EfficientNetB0'
         }), 200
         
     except Exception as e:
