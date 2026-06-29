@@ -6,12 +6,12 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.efficientnet import preprocess_input
 
-# Configuración
+# ========== CONFIGURACIÓN ==========
 CLASES = ['glass', 'metal', 'plastic']
 MAPEO_DISPLAY = {'glass': 'VIDRIO', 'metal': 'LATA', 'plastic': 'PLÁSTICO'}
 
 def cargar_modelo():
-    """Carga el modelo desde disco"""
+    """Carga el modelo EfficientNet entrenado"""
     rutas = [
         'modelo_residuos.keras',
         'modelos_guardados/clasificador_efficientnet.keras'
@@ -30,19 +30,16 @@ def cargar_modelo():
     print("   Ejecuta: python entrenar_modelo.py")
     return None
 
-def predecir_archivo(ruta_imagen, modelo, umbral=0.75):
-    """Predice una imagen desde archivo"""
+def predecir_imagen(ruta_imagen, modelo, umbral=0.75):
     if not os.path.exists(ruta_imagen):
         return {'error': f'Archivo no encontrado: {ruta_imagen}'}
     
-    # Cargar y preprocesar
     img = image.load_img(ruta_imagen, target_size=(224, 224))
     img_array = image.img_to_array(img)
     img_array = img_array.astype(np.float32)
-    img_array = preprocess_input(img_array)  # Normalización correcta
+    img_array = preprocess_input(img_array)
     img_array = np.expand_dims(img_array, axis=0)
     
-    # Predecir
     prediccion = modelo.predict(img_array, verbose=0)
     indice = np.argmax(prediccion[0])
     confianza = float(prediccion[0][indice])
@@ -69,36 +66,21 @@ def predecir_archivo(ruta_imagen, modelo, umbral=0.75):
         }
     }
 
-def predecir_carpeta(carpeta, modelo, umbral=0.75):
-    """Predice todas las imágenes en una carpeta"""
-    resultados = []
-    for archivo in os.listdir(carpeta):
-        if archivo.lower().endswith(('.png', '.jpg', '.jpeg')):
-            ruta = os.path.join(carpeta, archivo)
-            resultado = predecir_archivo(ruta, modelo, umbral)
-            resultados.append({
-                'archivo': archivo,
-                **resultado
-            })
-    return resultados
-
 def main():
     print("=" * 60)
     print("🔍 CLASIFICADOR DE BOTELLAS - EfficientNetB0")
     print("=" * 60)
     
-    # Cargar modelo
     modelo = cargar_modelo()
     if modelo is None:
         return
     
-    # Verificar argumentos
     if len(sys.argv) < 2:
         print("\n📖 Uso:")
         print("   python predecir_ia.py [ruta_imagen]")
         print("   python predecir_ia.py [ruta_carpeta]")
         print("\n💡 Ejemplos:")
-        print("   python predecir_ia.py imagen.jpg")
+        print("   python predecir_ia.py botella.jpg")
         print("   python predecir_ia.py datasets/trashnet/glass/")
         return
     
@@ -108,27 +90,24 @@ def main():
         print(f"❌ Ruta no encontrada: {ruta}")
         return
     
-    # Predecir
     if os.path.isdir(ruta):
         print(f"\n📁 Procesando carpeta: {ruta}")
         print("-" * 40)
         
-        resultados = predecir_carpeta(ruta, modelo)
-        
-        for r in resultados:
-            if 'error' in r:
-                print(f"{r['archivo']}: ❌ ERROR")
-            else:
-                print(f"{r['archivo']}: {r['clase_display']} ({r['confianza']:.2f}%)")
-        
-        print("-" * 40)
-        print(f"📊 Procesados: {len(resultados)} archivos")
-        
+        for archivo in os.listdir(ruta):
+            if archivo.lower().endswith(('.png', '.jpg', '.jpeg')):
+                ruta_img = os.path.join(ruta, archivo)
+                resultado = predecir_imagen(ruta_img, modelo)
+                
+                if 'error' in resultado:
+                    print(f"{archivo}: ❌ ERROR")
+                else:
+                    print(f"{archivo}: {resultado['clase_display']} ({resultado['confianza']:.2f}%)")
     else:
         print(f"\n📷 Imagen: {os.path.basename(ruta)}")
         print("-" * 40)
         
-        resultado = predecir_archivo(ruta, modelo)
+        resultado = predecir_imagen(ruta, modelo)
         
         if 'error' in resultado:
             print(f"❌ Error: {resultado['error']}")

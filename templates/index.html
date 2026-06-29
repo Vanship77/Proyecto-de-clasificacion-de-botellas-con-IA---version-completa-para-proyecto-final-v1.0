@@ -5,20 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>♻️ EcoRecicla - Reciclaje Inteligente con IA</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body>
-    <div class="theme-toggle">
-        <button id="themeToggle" class="theme-btn"><i class="fas fa-moon"></i></button>
-    </div>
+<body class="index-page">
+    <!-- ==========================================================
+         NAVBAR - BARRA DE NAVEGACIÓN
+         ========================================================== -->
+    <nav class="navbar-index">
+        <div class="navbar-index-container">
+            <!-- Logo y nombre -->
+            <div class="navbar-index-logo">
+                <i class="fas fa-recycle"></i>
+                <span>EcoRecicla</span>
+            </div>
 
+            <!-- Enlaces de navegación -->
+            <div class="navbar-index-links">
+                <a href="{{ url_for('login_page') }}" class="nav-index-btn nav-index-login">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                </a>
+                <a href="{{ url_for('registro_page') }}" class="nav-index-btn nav-index-register">
+                    <i class="fas fa-user-plus"></i> Registrarse
+                </a>
+                <!-- Botón modo oscuro -->
+                <button id="themeToggleIndex" class="nav-index-theme-btn">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ==========================================================
+         CONTENEDOR PRINCIPAL
+         ========================================================== -->
     <div class="container">
-        <!-- HERO SECTION -->
+        <!-- ===== HERO SECTION ===== -->
         <div class="hero-section">
             <h1>♻️ <span>EcoRecicla</span></h1>
-            <p>Clasificación inteligente de botellas con Inteligencia Artificial. <br>Detecta, clasifica y gana puntos mientras salvas el planeta.</p>
-            <div class="hero-buttons">
+            <p>Clasificación inteligente de botellas con Inteligencia Artificial.<br>Detecta, clasifica y gana puntos mientras salvas el planeta.</p>
+            <!-- Los botones ahora están en el navbar, pero los mantengo aquí también para no perder la estética -->
+            <div class="hero-buttons" style="display: none;">
                 <a href="{{ url_for('login_page') }}" class="btn-hero btn-hero-primary">
                     <i class="fas fa-sign-in-alt"></i> INICIAR SESIÓN
                 </a>
@@ -28,32 +56,134 @@
             </div>
         </div>
 
-        <!-- STATS MINI -->
+        <!-- ===== CARRUSEL ===== -->
+        <div class="carousel-container">
+            <div class="carousel-slides" id="carouselSlides">
+                <div class="carousel-slide slide-1">
+                    <i class="fas fa-recycle"></i>
+                    <h3>♻️ Recicla con Inteligencia</h3>
+                    <p>Nuestra IA detecta automáticamente el tipo de botella que tienes en la mano y te da puntos al instante.</p>
+                </div>
+                <div class="carousel-slide slide-2">
+                    <i class="fas fa-tree"></i>
+                    <h3>🌿 Ayuda al Planeta</h3>
+                    <p>Cada botella que reciclas reduce la contaminación. ¡Pequeñas acciones generan grandes cambios!</p>
+                </div>
+                <div class="carousel-slide slide-3">
+                    <i class="fas fa-trophy"></i>
+                    <h3>🏆 Gana Puntos y Sube en el Ranking</h3>
+                    <p>Compite con otros recicladores y demuestra quién es el más comprometido con el medio ambiente.</p>
+                </div>
+                <div class="carousel-slide slide-4">
+                    <i class="fas fa-microchip"></i>
+                    <h3>🔌 Compatible con Arduino</h3>
+                    <p>Conecta tu basurero inteligente con sensor infrarrojo para detección automática de botellas.</p>
+                </div>
+            </div>
+
+            <!-- Botones carrusel -->
+            <button class="carousel-btn prev" id="prevBtn"><i class="fas fa-chevron-left"></i></button>
+            <button class="carousel-btn next" id="nextBtn"><i class="fas fa-chevron-right"></i></button>
+
+            <!-- Indicadores -->
+            <div class="carousel-dots" id="carouselDots"></div>
+        </div>
+
+        <!-- ===== STATS MINI CON TOOLTIP ===== -->
         <div class="stats-mini">
             <div class="stat-mini">
-                <div class="numero">♻️</div>
-                <div class="label">Residuos reciclados</div>
+                <span class="numero">♻️</span>
+                <span class="label">Residuos reciclados</span>
+                <div class="stat-tooltip">
+                    <i class="fas fa-info-circle"></i> 
+                    Cada botella reciclada evita que un residuo contamine el planeta por cientos de años.
+                </div>
             </div>
             <div class="stat-mini">
-                <div class="numero">🌍</div>
-                <div class="label">Impacto ambiental positivo</div>
+                <span class="numero">🌍</span>
+                <span class="label">Impacto ambiental positivo</span>
+                <div class="stat-tooltip">
+                    <i class="fas fa-info-circle"></i> 
+                    Reciclar 1 botella de vidrio ahorra energía suficiente para encender un foco por 4 horas.
+                </div>
             </div>
             <div class="stat-mini">
-                <div class="numero">🏆</div>
-                <div class="label">Puntos por reciclar</div>
+                <span class="numero">🏆</span>
+                <span class="label">Puntos por reciclar</span>
+                <div class="stat-tooltip">
+                    <i class="fas fa-info-circle"></i> 
+                    Ganas puntos por cada reciclaje: +10 pts (plástico), +15 pts (vidrio), +10 pts (lata).
+                </div>
             </div>
             <div class="stat-mini">
-                <div class="numero">🤖</div>
-                <div class="label">IA: YOLO + MobileNet</div>
+                <span class="numero">🤖</span>
+                <span class="label">IA: MobileNet</span>
+                <div class="stat-tooltip">
+                    <i class="fas fa-info-circle"></i> 
+                    Utilizamos redes neuronales convolucionales para clasificar botellas en tiempo real con alta precisión.
+                </div>
             </div>
         </div>
 
-        <!-- FEATURES -->
+        <!-- ===== TESTIMONIALS CARRUSEL ===== -->
+        <div class="testimonials-carousel">
+            <div class="testimonials-slides" id="testimonialsSlides">
+                <div class="testimonial-slide">
+                    <div class="testimonial-card">
+                        <div class="testimonial-icon">🌱</div>
+                        <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                        <p>"EcoRecicla me ha ayudado a ser más consciente del reciclaje. Cada botella que reciclo me da puntos y sé que estoy ayudando al planeta. ¡Es adictivo!"</p>
+                        <div class="testimonial-autor"><i class="fas fa-user-circle"></i> — Carlos M., Usuario desde 2025</div>
+                    </div>
+                </div>
+                <div class="testimonial-slide">
+                    <div class="testimonial-card">
+                        <div class="testimonial-icon">🌟</div>
+                        <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                        <p>"La mejor app de reciclaje que he usado. La IA funciona perfecto y el sistema de puntos me motiva a reciclar más. ¡100% recomendada!"</p>
+                        <div class="testimonial-autor"><i class="fas fa-user-circle"></i> — Laura G., Recicladora activa</div>
+                    </div>
+                </div>
+                <div class="testimonial-slide">
+                    <div class="testimonial-card">
+                        <div class="testimonial-icon">💚</div>
+                        <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                        <p>"Increíble cómo la tecnología puede ayudar al medio ambiente. EcoRecicla hace que reciclar sea fácil, rápido y divertido. ¡Mis alumnos lo aman!"</p>
+                        <div class="testimonial-autor"><i class="fas fa-user-circle"></i> — Prof. Ana R., Educadora ambiental</div>
+                    </div>
+                </div>
+                <!-- ===== TESTIMONIO 4 ===== -->
+                <div class="testimonial-slide">
+                    <div class="testimonial-card">
+                        <div class="testimonial-icon">♻️</div>
+                        <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                        <p>"Desde que uso EcoRecicla, mi familia y yo hemos reducido nuestros residuos significativamente. Es fácil, rápido y muy satisfactorio ver cómo los puntos se acumulan."</p>
+                        <div class="testimonial-autor"><i class="fas fa-user-circle"></i> — Familia Gómez, Recicladores desde 2024</div>
+                    </div>
+                </div>
+                <!-- ===== TESTIMONIO 5 ===== -->
+                <div class="testimonial-slide">
+                    <div class="testimonial-card">
+                        <div class="testimonial-icon">🏆</div>
+                        <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                        <p>"El sistema de ranking me motiva a reciclar más cada día. Ver mi nombre en el top 10 es una satisfacción enorme. ¡EcoRecicla es genial!"</p>
+                        <div class="testimonial-autor"><i class="fas fa-user-circle"></i> — Javier R., Competidor del ranking</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones testimonial -->
+            <button class="testimonial-btn prev" id="testimonialPrev"><i class="fas fa-chevron-left"></i></button>
+            <button class="testimonial-btn next" id="testimonialNext"><i class="fas fa-chevron-right"></i></button>
+            <div class="testimonial-dots" id="testimonialDots"></div>
+        </div>
+
+        <!-- ===== FEATURES (10 tarjetas) ===== -->
         <div class="features-grid">
             <div class="feature-card">
                 <i class="fas fa-robot"></i>
                 <h3>IA Avanzada</h3>
-                <p>Utilizamos YOLO para detectar botellas y MobileNet para clasificar el material.</p>
+                <p>Utilizamos MobileNet para clasificar el material de la botella en tiempo real.</p>
             </div>
             <div class="feature-card">
                 <i class="fas fa-camera"></i>
@@ -71,24 +201,38 @@
                 <p>Compara tus puntos con otros usuarios y sube en el ranking de recicladores.</p>
             </div>
             <div class="feature-card">
-                <i class="fas fa-chart-pie"></i>
-                <h3>Estadísticas Detalladas</h3>
-                <p>Visualiza tus reciclajes por tipo de material: plástico, vidrio y lata.</p>
+                <i class="fas fa-chart-simple"></i>
+                <h3>Estadísticas en Vivo</h3>
+                <p>Visualiza tus reciclajes en tiempo real con gráficos detallados por material.</p>
             </div>
             <div class="feature-card">
-                <i class="fas fa-microchip"></i>
-                <h3>Arduino + Sensor IR</h3>
-                <p>Conéctalo con sensor infrarrojo para detección física de botellas.</p>
+                <i class="fas fa-mobile-alt"></i>
+                <h3>Compatible con Móviles</h3>
+                <p>Usa tu teléfono como cámara y recicla desde cualquier lugar con EcoRecicla.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h3>Datos en la Nube</h3>
+                <p>Todos tus reciclajes se guardan automáticamente para que no pierdas tu progreso.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-hand-holding-heart"></i>
+                <h3>Impacto Real</h3>
+                <p>Cada botella reciclada es un paso hacia un mundo más limpio y sostenible.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-clock"></i>
+                <h3>Reciclaje Rápido</h3>
+                <p>El proceso de detección y clasificación toma menos de 2 segundos. ¡Todo en tiempo real!</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-graduation-cap"></i>
+                <h3>Educación Ambiental</h3>
+                <p>Aprende sobre los diferentes tipos de materiales y cómo reciclarlos correctamente.</p>
             </div>
         </div>
 
-        <!-- TESTIMONIAL -->
-        <div class="testimonial">
-            <p>🌱 "EcoRecicla me ha ayudado a ser más consciente del reciclaje. Cada botella que reciclo me da puntos y sé que estoy ayudando al planeta. ¡Es adictivo!"</p>
-            <div class="autor">— Usuario de EcoRecicla</div>
-        </div>
-
-        <!-- PUNTAJES POR MATERIAL -->
+        <!-- ===== PUNTAJES POR MATERIAL ===== -->
         <div class="puntajes-container" style="margin-top:30px;">
             <h4><i class="fas fa-coins"></i> ¿Cuántos puntos por material?</h4>
             <div class="puntajes-grid">
@@ -110,22 +254,25 @@
             </div>
         </div>
 
-        <!-- CTA FINAL -->
-        <div style="text-align: center; color: white; padding: 40px 20px;">
-            <h2 style="font-size: 2rem;">¿Listo para empezar a reciclar?</h2>
-            <p style="opacity: 0.8; margin: 15px 0 25px;">Únete a la comunidad de recicladores y gana puntos mientras cuidas el planeta.</p>
+        <!-- ===== CTA FINAL ===== -->
+        <div class="cta-final">
+            <h2>¿Listo para empezar a reciclar?</h2>
+            <p>Únete a la comunidad de recicladores y gana puntos mientras cuidas el planeta.</p>
             <a href="{{ url_for('registro_page') }}" class="btn-hero btn-hero-primary" style="text-decoration:none; display:inline-flex;">
                 <i class="fas fa-user-plus"></i> CREAR CUENTA AHORA
             </a>
         </div>
     </div>
 
+    <!-- ==========================================================
+         FOOTER
+         ========================================================== -->
     <footer class="footer">
         <div class="footer-content">
             <div class="footer-logo"><i class="fas fa-recycle"></i><span>EcoRecicla</span></div>
             <p>🌱 Reciclaje inteligente con IA - ¡Cada botella cuenta!</p>
             <div class="footer-links">
-                <span><i class="fas fa-microchip"></i> IA: YOLO + MobileNet</span>
+                <span><i class="fas fa-microchip"></i> IA: MobileNet</span>
                 <span><i class="fas fa-camera"></i> Escaneo automático</span>
                 <span><i class="fas fa-robot"></i> Detección en tiempo real</span>
                 <span><i class="fas fa-arduino"></i> Arduino compatible</span>
@@ -133,9 +280,12 @@
         </div>
     </footer>
 
+    <!-- ==========================================================
+         SCRIPTS
+         ========================================================== -->
     <script>
-        // Modo oscuro/claro
-        const themeToggle = document.getElementById('themeToggle');
+        // ===== MODO OSCURO/CLARO =====
+        const themeToggle = document.getElementById('themeToggleIndex');
         if (themeToggle) {
             themeToggle.addEventListener('click', () => {
                 document.body.classList.toggle('light-mode');
@@ -149,6 +299,116 @@
                 }
             });
         }
+
+        // ===== CARRUSEL PRINCIPAL =====
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.carousel-slide');
+        const totalSlides = slides.length;
+        const carouselSlides = document.getElementById('carouselSlides');
+        const dotsContainer = document.getElementById('carouselDots');
+
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = document.createElement('button');
+            dot.className = `carousel-dot ${i === 0 ? 'active' : ''}`;
+            dot.dataset.index = i;
+            dot.addEventListener('click', () => goToSlide(i));
+            dotsContainer.appendChild(dot);
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            if (currentSlide < 0) currentSlide = totalSlides - 1;
+            if (currentSlide >= totalSlides) currentSlide = 0;
+            carouselSlides.style.transform = `translateX(-${currentSlide * 100}%)`;
+            document.querySelectorAll('.carousel-dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentSlide);
+            });
+        }
+
+        function nextSlide() { goToSlide(currentSlide + 1); }
+        function prevSlide() { goToSlide(currentSlide - 1); }
+
+        document.getElementById('nextBtn').addEventListener('click', nextSlide);
+        document.getElementById('prevBtn').addEventListener('click', prevSlide);
+
+        let autoPlay = setInterval(nextSlide, 5000);
+        const carouselContainer = document.querySelector('.carousel-container');
+        carouselContainer.addEventListener('mouseenter', () => clearInterval(autoPlay));
+        carouselContainer.addEventListener('mouseleave', () => {
+            autoPlay = setInterval(nextSlide, 5000);
+        });
+
+        // Touch
+        let touchStartX = 0, touchEndX = 0;
+        carouselContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        carouselContainer.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const diff = touchStartX - touchEndX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) nextSlide();
+                else prevSlide();
+            }
+        });
+
+        // Keyboard
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+
+        // ===== CARRUSEL DE TESTIMONIOS =====
+        let testimonialIndex = 0;
+        const testimonialSlides = document.querySelectorAll('.testimonial-slide');
+        const totalTestimonials = testimonialSlides.length;
+        const testimonialContainer = document.getElementById('testimonialsSlides');
+        const dotsContainer2 = document.getElementById('testimonialDots');
+
+        for (let i = 0; i < totalTestimonials; i++) {
+            const dot = document.createElement('button');
+            dot.className = `testimonial-dot ${i === 0 ? 'active' : ''}`;
+            dot.dataset.index = i;
+            dot.addEventListener('click', () => goToTestimonial(i));
+            dotsContainer2.appendChild(dot);
+        }
+
+        function goToTestimonial(index) {
+            testimonialIndex = index;
+            if (testimonialIndex < 0) testimonialIndex = totalTestimonials - 1;
+            if (testimonialIndex >= totalTestimonials) testimonialIndex = 0;
+            testimonialContainer.style.transform = `translateX(-${testimonialIndex * 100}%)`;
+            document.querySelectorAll('.testimonial-dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === testimonialIndex);
+            });
+        }
+
+        function nextTestimonial() { goToTestimonial(testimonialIndex + 1); }
+        function prevTestimonial() { goToTestimonial(testimonialIndex - 1); }
+
+        document.getElementById('testimonialNext').addEventListener('click', nextTestimonial);
+        document.getElementById('testimonialPrev').addEventListener('click', prevTestimonial);
+
+        let autoPlayTestimonials = setInterval(nextTestimonial, 6000);
+        const testimonialCarousel = document.querySelector('.testimonials-carousel');
+        testimonialCarousel.addEventListener('mouseenter', () => clearInterval(autoPlayTestimonials));
+        testimonialCarousel.addEventListener('mouseleave', () => {
+            autoPlayTestimonials = setInterval(nextTestimonial, 6000);
+        });
+
+        // Touch testimonios
+        let touchStartX2 = 0, touchEndX2 = 0;
+        testimonialCarousel.addEventListener('touchstart', (e) => {
+            touchStartX2 = e.changedTouches[0].screenX;
+        });
+        testimonialCarousel.addEventListener('touchend', (e) => {
+            touchEndX2 = e.changedTouches[0].screenX;
+            const diff = touchStartX2 - touchEndX2;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) nextTestimonial();
+                else prevTestimonial();
+            }
+        });
     </script>
 </body>
 </html>

@@ -1,0 +1,516 @@
+/* ==========================================================
+   dashboard.css - ESTILOS DEL DASHBOARD USUARIO
+   ========================================================== */
+
+/* ===== USER INFO CARD ===== */
+.user-info-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.user-info-card .user-detail {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+}
+
+.user-info-card .user-detail i {
+    font-size: 28px;
+    color: #2ecc71;
+}
+
+.user-info-card .user-detail .label {
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+.user-info-card .user-detail .value {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.user-info-card .user-badge {
+    background: rgba(46, 204, 113, 0.2);
+    padding: 8px 20px;
+    border-radius: 50px;
+    color: #2ecc71;
+    font-weight: 700;
+    font-size: 14px;
+    border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+/* Modo claro - User Info */
+body.light-mode .user-info-card {
+    background: white !important;
+    border-color: #e0e0e0 !important;
+}
+
+body.light-mode .user-info-card .user-detail {
+    color: #1a1a2e !important;
+}
+
+body.light-mode .user-info-card .user-detail .label {
+    color: #888 !important;
+}
+
+body.light-mode .user-info-card .user-detail .value {
+    color: #1a1a2e !important;
+}
+
+body.light-mode .user-info-card .user-badge {
+    background: rgba(46, 204, 113, 0.08) !important;
+    color: #27ae60 !important;
+    border-color: rgba(46, 204, 113, 0.15) !important;
+}
+
+/* ===== PROGRESO GOAL ===== */
+.progress-goal {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 15px 20px;
+    margin: 15px 0;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.progress-goal .goal-label {
+    display: flex;
+    justify-content: space-between;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.progress-goal .goal-bar {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-goal .goal-bar .goal-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2ecc71, #27ae60);
+    border-radius: 10px;
+    transition: width 0.8s ease;
+}
+
+.goal-fill.achieved {
+    background: linear-gradient(90deg, #f1c40f, #f39c12);
+}
+
+body.light-mode .progress-goal {
+    background: white !important;
+    border-color: #e0e0e0 !important;
+}
+
+body.light-mode .progress-goal .goal-label {
+    color: #555 !important;
+}
+
+body.light-mode .progress-goal .goal-bar {
+    background: #e0e0e0 !important;
+}
+
+/* ==========================================================
+   TIPS / CONSEJOS
+   ========================================================== */
+
+/* Contenedor exterior con clase tips-section */
+.tabla-container.tips-section {
+    background: rgba(20, 20, 35, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 25px;
+    padding: 25px;
+    backdrop-filter: blur(10px);
+}
+
+.tabla-container.tips-section h3 {
+    color: #ffffff !important;
+}
+
+.tabla-container.tips-section h3 i {
+    color: #2ecc71 !important;
+}
+
+/* Contenedor interno de tips */
+.tabla-container.tips-section .tips-container {
+    background: rgba(0, 0, 0, 0.25) !important;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 0;
+}
+
+/* Tarjetas de consejos */
+.tabla-container.tips-section .tip-card {
+    background: rgba(20, 20, 35, 0.7) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 16px;
+    padding: 18px 16px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.tabla-container.tips-section .tip-card:hover {
+    background: rgba(30, 30, 50, 0.9) !important;
+    border-color: rgba(46, 204, 113, 0.3) !important;
+    transform: translateY(-4px);
+}
+
+.tabla-container.tips-section .tip-card i {
+    color: #2ecc71;
+    font-size: 32px;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.tabla-container.tips-section .tip-card .tip-title {
+    color: #ffffff !important;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.tabla-container.tips-section .tip-card .tip-desc {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* Modo claro - Tips Section */
+body.light-mode .tabla-container.tips-section {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+body.light-mode .tabla-container.tips-section h3 {
+    color: #1a1a2e !important;
+}
+
+body.light-mode .tabla-container.tips-section .tips-container {
+    background: rgba(0, 0, 0, 0.03) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+body.light-mode .tabla-container.tips-section .tip-card {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+body.light-mode .tabla-container.tips-section .tip-card:hover {
+    background: #ffffff !important;
+    border-color: #2ecc71 !important;
+    box-shadow: 0 8px 25px rgba(46, 204, 113, 0.15);
+}
+
+body.light-mode .tabla-container.tips-section .tip-card .tip-title {
+    color: #1a1a2e !important;
+}
+
+body.light-mode .tabla-container.tips-section .tip-card .tip-desc {
+    color: #555555 !important;
+}
+
+/* ==========================================================
+   RANKING Y ESTADÍSTICAS - FONDO OSCURO
+   ========================================================== */
+
+.dashboard-grid .tabla-container {
+    background: rgba(20, 20, 35, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 25px;
+    padding: 25px;
+    backdrop-filter: blur(10px);
+}
+
+.dashboard-grid .tabla-container h3 {
+    color: #ffffff !important;
+}
+
+.dashboard-grid .tabla-container h3 i {
+    color: #2ecc71 !important;
+}
+
+/* Ranking items */
+.dashboard-grid .ranking-item {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 15px;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+}
+
+.dashboard-grid .ranking-item:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(46, 204, 113, 0.2) !important;
+}
+
+.dashboard-grid .ranking-position {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.dashboard-grid .ranking-name {
+    color: #ffffff !important;
+}
+
+.dashboard-grid .ranking-points {
+    color: #2ecc71 !important;
+}
+
+.dashboard-grid .ranking-reciclajes {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Modo claro - Ranking y Estadísticas */
+body.light-mode .dashboard-grid .tabla-container {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+body.light-mode .dashboard-grid .tabla-container h3 {
+    color: #1a1a2e !important;
+}
+
+body.light-mode .dashboard-grid .ranking-item {
+    background: #f8f9fa !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+body.light-mode .dashboard-grid .ranking-item:hover {
+    background: #f0f0f0 !important;
+    border-color: #2ecc71 !important;
+}
+
+body.light-mode .dashboard-grid .ranking-position {
+    color: #1a1a2e !important;
+}
+
+body.light-mode .dashboard-grid .ranking-name {
+    color: #1a1a2e !important;
+}
+
+body.light-mode .dashboard-grid .ranking-points {
+    color: #2ecc71 !important;
+}
+
+body.light-mode .dashboard-grid .ranking-reciclajes {
+    color: #888 !important;
+}
+
+/* ==========================================================
+   CÁMARA
+   ========================================================== */
+
+.camara-controls {
+    display: flex;
+    gap: 15px;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+.camara-preview {
+    margin-top: 15px;
+    border-radius: 15px;
+    overflow: hidden;
+    background: #000;
+    position: relative;
+}
+
+.camara-preview video {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+}
+
+.preview-overlay {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: white;
+    text-align: center;
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    font-weight: bold;
+}
+
+/* ==========================================================
+   ÚLTIMAS DETECCIONES
+   ========================================================== */
+
+.ultimas-detecciones {
+    margin-top: 15px;
+    max-height: 250px;
+    overflow-y: auto;
+    border-radius: 16px;
+}
+
+.ultimas-detecciones h4 {
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.deteccion-item {
+    background: #1e1e2e;
+    padding: 12px 16px;
+    margin: 8px 0;
+    border-radius: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+    border: 1px solid #2c2c3e;
+}
+
+.deteccion-item:hover {
+    transform: translateX(5px);
+    background: #2a2a3a;
+    border-color: #3a3a4e;
+}
+
+.deteccion-item .tipo-material {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+}
+
+.deteccion-item .tipo-material.plastico {
+    color: #3498db;
+}
+
+.deteccion-item .tipo-material.vidrio {
+    color: #2ecc71;
+}
+
+.deteccion-item .tipo-material.lata {
+    color: #e74c3c;
+}
+
+.deteccion-item .puntos {
+    font-weight: 800;
+    color: #f1c40f;
+    background: rgba(241, 196, 15, 0.15);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.deteccion-item .hora {
+    color: #888;
+    font-size: 11px;
+    font-family: monospace;
+}
+
+/* Modo claro - Detecciones */
+body.light-mode .ultimas-detecciones h4 {
+    color: #555;
+}
+
+body.light-mode .deteccion-item {
+    background: white;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+body.light-mode .deteccion-item:hover {
+    background: #f8f9fa;
+    border-color: #ccc;
+}
+
+body.light-mode .deteccion-item .tipo-material.plastico {
+    color: #2874a6;
+}
+
+body.light-mode .deteccion-item .tipo-material.vidrio {
+    color: #1e8a4a;
+}
+
+body.light-mode .deteccion-item .tipo-material.lata {
+    color: #b83a2a;
+}
+
+body.light-mode .deteccion-item .puntos {
+    color: #c9a00a;
+    background: rgba(201, 160, 10, 0.1);
+}
+
+body.light-mode .deteccion-item .hora {
+    color: #999;
+}
+
+/* ==========================================================
+   DASHBOARD GRID
+   ========================================================== */
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .user-info-card {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .user-info-card .user-detail {
+        justify-content: center;
+    }
+
+    .user-info-card .user-badge {
+        text-align: center;
+    }
+
+    .tabla-container.tips-section .tips-container {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .tabla-container.tips-section .tips-container {
+        grid-template-columns: 1fr;
+    }
+
+    .camara-controls {
+        flex-direction: column;
+    }
+
+    .camara-controls button {
+        width: 100%;
+    }
+}

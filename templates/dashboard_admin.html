@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body>
+<body class="bg-forest">
     <div class="theme-toggle">
         <button id="themeToggle" class="theme-btn"><i class="fas fa-moon"></i></button>
     </div>
@@ -17,7 +17,10 @@
         <!-- NAVBAR ADMIN -->
         <nav class="navbar">
             <div class="nav-container">
-                <div class="nav-logo"><i class="fas fa-recycle"></i> EcoRecicla <span class="admin-badge">ADMIN</span></div>
+                <div class="nav-logo">
+                    <i class="fas fa-recycle"></i> EcoRecicla 
+                    <span class="admin-badge">ADMIN</span>
+                </div>
                 <div class="nav-user">
                     <span><i class="fas fa-user-shield"></i> {{ session.get('nombre', 'Admin') }}</span>
                     <span class="nav-role">👑 Administrador</span>
@@ -38,6 +41,48 @@
             <div class="stat-card"><i class="fas fa-trophy"></i>
                 <div class="stat-info"><span class="stat-value" id="totalPuntosHoy">0</span><span class="stat-label-header">Puntos totales</span></div>
             </div>
+        </div>
+
+        <!-- ===== GESTIÓN DE PUNTAJES ===== -->
+        <div class="admin-card" style="margin-bottom:20px;">
+            <h4><i class="fas fa-coins"></i> Gestionar Puntajes por Material</h4>
+            <p style="opacity:0.6; font-size:13px; margin-bottom:15px;">Modifica los puntos que se otorgan por cada tipo de botella reciclada.</p>
+            <div class="admin-puntajes-grid">
+                <!-- Plástico -->
+                <div class="admin-puntaje-item">
+                    <span class="material-icon">🥤</span>
+                    <span class="material-name">Plástico</span>
+                    <div>
+                        <input type="number" class="puntaje-input" id="puntaje_plastico" value="10" min="1" max="100">
+                    </div>
+                    <button class="btn-actualizar-puntaje" onclick="actualizarPuntaje('plastico')">
+                        <i class="fas fa-save"></i> Actualizar
+                    </button>
+                </div>
+                <!-- Vidrio -->
+                <div class="admin-puntaje-item">
+                    <span class="material-icon">🍾</span>
+                    <span class="material-name">Vidrio</span>
+                    <div>
+                        <input type="number" class="puntaje-input" id="puntaje_vidrio" value="15" min="1" max="100">
+                    </div>
+                    <button class="btn-actualizar-puntaje" onclick="actualizarPuntaje('vidrio')">
+                        <i class="fas fa-save"></i> Actualizar
+                    </button>
+                </div>
+                <!-- Lata -->
+                <div class="admin-puntaje-item">
+                    <span class="material-icon">🥫</span>
+                    <span class="material-name">Lata</span>
+                    <div>
+                        <input type="number" class="puntaje-input" id="puntaje_lata" value="10" min="1" max="100">
+                    </div>
+                    <button class="btn-actualizar-puntaje" onclick="actualizarPuntaje('lata')">
+                        <i class="fas fa-save"></i> Actualizar
+                    </button>
+                </div>
+            </div>
+            <div id="mensaje_puntajes" class="mensaje-admin" style="margin-top:15px;"></div>
         </div>
 
         <!-- PANEL DE ADMINISTRACIÓN -->
@@ -85,17 +130,74 @@
                 <div id="listaUsuariosAdmin"><div class="skeleton-loader"></div></div>
             </div>
         </div>
+
+        <!-- BOTÓN VOLVER AL INICIO -->
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="{{ url_for('index') }}" class="btn-hero btn-hero-secondary" style="text-decoration:none; display:inline-flex; padding:12px 30px; border-radius:50px; background:rgba(255,255,255,0.1); color:white; gap:10px;">
+                <i class="fas fa-arrow-left"></i> Volver al Inicio
+            </a>
+        </div>
     </div>
 
     <footer class="footer">
         <div class="footer-content">
             <div class="footer-logo"><i class="fas fa-recycle"></i> EcoRecicla</div>
             <p>🔐 Panel de Administración</p>
+            <div class="footer-links">
+                <span><i class="fas fa-shield-alt"></i> Administración</span>
+                <span><i class="fas fa-users"></i> Gestión de usuarios</span>
+                <span><i class="fas fa-chart-line"></i> Estadísticas</span>
+            </div>
         </div>
     </footer>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script>
+        // ========== ACTUALIZAR PUNTAJE ==========
+        async function actualizarPuntaje(material) {
+            const inputId = `puntaje_${material}`;
+            const input = document.getElementById(inputId);
+            const nuevoPuntaje = parseInt(input.value);
+            const mensaje = document.getElementById('mensaje_puntajes');
+
+            if (!nuevoPuntaje || nuevoPuntaje < 1) {
+                mensaje.innerHTML = '❌ Ingresa un valor válido (mínimo 1)';
+                mensaje.className = 'mensaje-admin error';
+                setTimeout(() => { mensaje.innerHTML = ''; mensaje.className = 'mensaje-admin'; }, 3000);
+                return;
+            }
+
+            const nombres = {
+                'plastico': 'Plástico',
+                'vidrio': 'Vidrio',
+                'lata': 'Lata'
+            };
+
+            try {
+                const response = await fetch('/actualizar_puntaje', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ material, puntos: nuevoPuntaje })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    mensaje.innerHTML = `✅ Puntaje de ${nombres[material]} actualizado a ${nuevoPuntaje} pts`;
+                    mensaje.className = 'mensaje-admin success';
+                    input.value = nuevoPuntaje;
+                    cargarRanking();
+                    cargarStatsHeader();
+                } else {
+                    mensaje.innerHTML = `❌ ${data.error || 'Error al actualizar'}`;
+                    mensaje.className = 'mensaje-admin error';
+                }
+            } catch (error) {
+                mensaje.innerHTML = '❌ Error al conectar con el servidor';
+                mensaje.className = 'mensaje-admin error';
+            }
+            setTimeout(() => { mensaje.innerHTML = ''; mensaje.className = 'mensaje-admin'; }, 4000);
+        }
+
         // ========== FUNCIONES ADMIN ==========
         async function crearUsuarioAdmin() {
             const nombre = document.getElementById('admin_nombre').value;
@@ -212,7 +314,7 @@
             }
         }
 
-        // Sobrescribir funciones para que actualicen también la lista de admin
+        // ========== SOBRESCRIBIR FUNCIONES ==========
         const originalCargarListaUsuarios = window.cargarListaUsuarios;
         const originalCargarRanking = window.cargarRanking;
         const originalCargarStatsHeader = window.cargarStatsHeader;
@@ -239,7 +341,7 @@
             } catch (error) {}
         };
 
-        // Cargar al iniciar
+        // ========== CARGAR INICIAL ==========
         document.addEventListener('DOMContentLoaded', () => {
             if (document.getElementById('listaUsuariosAdmin')) {
                 cargarListaUsuariosAdmin();

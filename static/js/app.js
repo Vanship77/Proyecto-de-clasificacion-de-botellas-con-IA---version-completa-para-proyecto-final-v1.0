@@ -1,4 +1,4 @@
-// static/js/app.js - Basurero Inteligente con YOLO + MobileNet (SIN PARPADEOS)
+// static/js/app.js - Basurero Inteligente con MobileNet
 
 let streamCamara = null;
 let detecciones = [];

@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>♻️ EcoRecicla - Mi Panel</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body>
+
+<body class="bg-forest">
     <div class="theme-toggle">
         <button id="themeToggle" class="theme-btn"><i class="fas fa-moon"></i></button>
     </div>
@@ -29,13 +33,16 @@
         <!-- HEADER ESTADÍSTICAS -->
         <div class="stats-header">
             <div class="stat-card"><i class="fas fa-recycle"></i>
-                <div class="stat-info"><span class="stat-value" id="totalReciclajesHoy">0</span><span class="stat-label-header">Reciclajes</span></div>
+                <div class="stat-info"><span class="stat-value" id="totalReciclajesHoy">0</span><span
+                        class="stat-label-header">Reciclajes</span></div>
             </div>
             <div class="stat-card"><i class="fas fa-trophy"></i>
-                <div class="stat-info"><span class="stat-value" id="totalPuntosHoy">0</span><span class="stat-label-header">Puntos totales</span></div>
+                <div class="stat-info"><span class="stat-value" id="totalPuntosHoy">0</span><span
+                        class="stat-label-header">Puntos totales</span></div>
             </div>
             <div class="stat-card"><i class="fas fa-users"></i>
-                <div class="stat-info"><span class="stat-value" id="totalUsuarios">0</span><span class="stat-label-header">Recicladores</span></div>
+                <div class="stat-info"><span class="stat-value" id="totalUsuarios">0</span><span
+                        class="stat-label-header">Recicladores</span></div>
             </div>
         </div>
 
@@ -72,10 +79,12 @@
                 <span id="puntosActuales">{{ session.get('puntos', 0) }} / 400 pts</span>
             </div>
             <div class="goal-bar">
-                <div class="goal-fill" id="goalFill" style="width: {{ (session.get('puntos', 0) / 400) * 100 }}%;"></div>
+                <div class="goal-fill" id="goalFill" style="width: {{ (session.get('puntos', 0) / 400) * 100 }}%;">
+                </div>
             </div>
             <div style="text-align: right; font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 6px;">
-                {% if session.get('puntos', 0) >= 400 %}🏆 ¡Meta alcanzada!{% else %}Sigue reciclando para alcanzar la meta{% endif %}
+                {% if session.get('puntos', 0) >= 400 %}🏆 ¡Meta alcanzada!{% else %}Sigue reciclando para alcanzar la
+                meta{% endif %}
             </div>
         </div>
 
@@ -83,9 +92,12 @@
         <div class="puntajes-container">
             <h4><i class="fas fa-coins"></i> Puntajes por material</h4>
             <div class="puntajes-grid">
-                <div class="puntaje-card plastic-puntaje"><span style="font-size: 36px;">🥤</span><span>Plástico</span><strong>+10 pts</strong></div>
-                <div class="puntaje-card glass-puntaje"><span style="font-size: 36px;">🍾</span><span>Vidrio</span><strong>+15 pts</strong></div>
-                <div class="puntaje-card metal-puntaje"><span style="font-size: 36px;">🥫</span><span>Lata</span><strong>+10 pts</strong></div>
+                <div class="puntaje-card plastic-puntaje"><span
+                        style="font-size: 36px;">🥤</span><span>Plástico</span><strong>+10 pts</strong></div>
+                <div class="puntaje-card glass-puntaje"><span
+                        style="font-size: 36px;">🍾</span><span>Vidrio</span><strong>+15 pts</strong></div>
+                <div class="puntaje-card metal-puntaje"><span
+                        style="font-size: 36px;">🥫</span><span>Lata</span><strong>+10 pts</strong></div>
             </div>
         </div>
 
@@ -95,7 +107,7 @@
                 <div class="header-icon"><i class="fas fa-camera"></i></div>
                 <h1>♻️ Detección Inteligente</h1>
                 <p>Acerca la botella a la cámara y gana puntos</p>
-                <div class="ia-badge"><i class="fas fa-brain"></i> IA: YOLO + MobileNet</div>
+                <div class="ia-badge"><i class="fas fa-brain"></i> IA: MobileNet</div>
             </div>
             <div class="formulario">
                 <input type="hidden" id="usuario_id" value="{{ session.get('usuario_id', '') }}">
@@ -103,8 +115,10 @@
                 <div class="form-group">
                     <label><i class="fas fa-camera"></i> Escáner automático</label>
                     <div class="camara-controls">
-                        <button id="btnActivarCamara" class="btn-camara" style="width:100%"><i class="fas fa-camera"></i> ACTIVAR CÁMARA</button>
-                        <button id="btnDetenerCamara" class="btn-camara btn-detener" style="display:none; width:100%"><i class="fas fa-stop"></i> DETENER ESCANEO</button>
+                        <button id="btnActivarCamara" class="btn-camara" style="width:100%"><i
+                                class="fas fa-camera"></i> ACTIVAR CÁMARA</button>
+                        <button id="btnDetenerCamara" class="btn-camara btn-detener" style="display:none; width:100%"><i
+                                class="fas fa-stop"></i> DETENER ESCANEO</button>
                     </div>
                 </div>
 
@@ -116,7 +130,9 @@
 
                 <div class="ultimas-detecciones">
                     <h4><i class="fas fa-history"></i> Últimas detecciones</h4>
-                    <div id="ultimasDetecciones"><p class="empty-msg">Activa la cámara para comenzar</p></div>
+                    <div id="ultimasDetecciones">
+                        <p class="empty-msg">Activa la cámara para comenzar</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -125,16 +141,20 @@
         <div class="dashboard-grid">
             <div class="tabla-container">
                 <h3><i class="fas fa-trophy"></i> Ranking Global</h3>
-                <div class="ranking-list" id="ranking"><div class="skeleton-loader"></div></div>
+                <div class="ranking-list" id="ranking">
+                    <div class="skeleton-loader"></div>
+                </div>
             </div>
             <div class="tabla-container">
                 <h3><i class="fas fa-chart-pie"></i> Mis Estadísticas</h3>
-                <div class="stats-cards" id="estadisticas"><div class="skeleton-loader"></div></div>
+                <div class="stats-cards" id="estadisticas">
+                    <div class="skeleton-loader"></div>
+                </div>
             </div>
         </div>
 
         <!-- CONSEJOS DE RECICLAJE -->
-        <div class="tabla-container" style="margin-top: 10px;">
+        <div class="tabla-container tips-section" style="margin-top: 10px;">
             <h3><i class="fas fa-lightbulb"></i> Consejos para reciclar mejor</h3>
             <div class="tips-container">
                 <div class="tip-card">
@@ -166,7 +186,7 @@
             <div class="footer-logo"><i class="fas fa-recycle"></i> EcoRecicla</div>
             <p>🌱 Detección automática con IA - ¡Acerca la botella y gana puntos!</p>
             <div class="footer-links">
-                <span><i class="fas fa-microchip"></i> YOLO + MobileNet</span>
+                <span><i class="fas fa-microchip"></i>MobileNet</span>
                 <span><i class="fas fa-camera"></i> Escaneo automático</span>
                 <span><i class="fas fa-robot"></i> Detección en tiempo real</span>
             </div>
@@ -175,4 +195,5 @@
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
+
 </html>

@@ -1,4 +1,4 @@
-# entrenar_modelo.py - Entrenamiento con EfficientNetB0 (CON LAMBDA - CORREGIDO)
+# entrenar_modelo.py - Entrenamiento con EfficientNetB0
 import os
 import numpy as np
 import tensorflow as tf
@@ -18,7 +18,7 @@ EPOCHS = 25
 CLASES = ['glass', 'metal', 'plastic']
 
 print("=" * 60)
-print("🚀 ENTRENAMIENTO CON EFFICIENTNETB0 (CON LAMBDA)")
+print("🚀 ENTRENAMIENTO CON EFFICIENTNETB0")
 print("=" * 60)
 print(f"📂 Dataset: {DATASET_DIR}")
 print(f"📋 Clases: {CLASES}")
@@ -45,7 +45,6 @@ if total_imagenes == 0:
 # ========== 2. CARGAR DATOS ==========
 print("\n📂 Cargando datos...")
 
-# Pesos para clases desbalanceadas
 total = sum(conteo.values())
 peso_clases = {}
 for i, clase in enumerate(CLASES):
@@ -73,7 +72,6 @@ datos_temporales = tf.keras.utils.image_dataset_from_directory(
     class_names=CLASES
 )
 
-# Dividir validación (15%) y prueba (15%)
 lotes_validacion = tf.data.experimental.cardinality(datos_temporales)
 datos_prueba = datos_temporales.take(lotes_validacion // 2)
 datos_validacion = datos_temporales.skip(lotes_validacion // 2)
@@ -93,7 +91,6 @@ modelo_base = EfficientNetB0(
 )
 modelo_base.trainable = False
 
-# Aumento de datos
 aumento_datos = tf.keras.Sequential([
     tf.keras.layers.RandomFlip("horizontal"),
     tf.keras.layers.RandomRotation(0.15),
@@ -103,13 +100,12 @@ aumento_datos = tf.keras.Sequential([
     tf.keras.layers.RandomBrightness(0.2, value_range=(0, 255)),
 ])
 
-# Modelo CON Lambda
 modelo = tf.keras.Sequential([
     tf.keras.layers.Input(shape=(224, 224, 3)),
     aumento_datos,
-    tf.keras.layers.Lambda(preprocess_input),  # ÍNDICE 1
-    modelo_base,                               # ÍNDICE 2 (EfficientNetB0)
-    tf.keras.layers.GlobalAveragePooling2D(),  # ÍNDICE 3
+    tf.keras.layers.Lambda(preprocess_input),
+    modelo_base,
+    tf.keras.layers.GlobalAveragePooling2D(),
     tf.keras.layers.Dense(256, activation='relu'),
     tf.keras.layers.Dropout(0.4),
     tf.keras.layers.Dense(len(CLASES), activation='softmax')
@@ -140,11 +136,9 @@ historial = modelo.fit(
 # ========== 5. AJUSTE FINO ==========
 print("\n🔧 FASE 2: Ajuste fino...")
 
-# La capa 2 es EfficientNetB0 (después de Lambda en índice 1)
 efficientnet_layer = modelo.layers[2]
 efficientnet_layer.trainable = True
 
-# Mantener BatchNormalization congeladas
 for capa in efficientnet_layer.layers:
     if isinstance(capa, tf.keras.layers.BatchNormalization):
         capa.trainable = False
@@ -170,18 +164,15 @@ print("\n📊 Evaluando modelo...")
 perdida, exactitud = modelo.evaluate(datos_prueba, verbose=0)
 print(f"✅ Precisión en prueba: {exactitud*100:.2f}%")
 
-# ========== 7. GUARDAR (SIN LA LAMBDA) ==========
+# ========== 7. GUARDAR ==========
 print("\n💾 Guardando modelo...")
 
-# Crear un nuevo modelo SIN la Lambda (índice 1)
 nuevas_capas = []
 for i, capa in enumerate(modelo.layers):
-    if i != 1:  # Saltar la capa Lambda
+    if i != 1:
         nuevas_capas.append(capa)
 
 modelo_guardar = tf.keras.Sequential(nuevas_capas)
-
-# Compilar
 modelo_guardar.compile(
     optimizer='adam',
     loss='sparse_categorical_crossentropy',
@@ -190,14 +181,12 @@ modelo_guardar.compile(
 
 os.makedirs("modelos_guardados", exist_ok=True)
 
-# Guardar el modelo SIN Lambda
 modelo_guardar.save("modelo_residuos.keras")
 modelo_guardar.save("modelos_guardados/clasificador_efficientnet.keras")
 print("✅ Modelo guardado en:")
 print("   - modelo_residuos.keras")
 print("   - modelos_guardados/clasificador_efficientnet.keras")
 
-# Guardar configuración
 config = {
     'clases': CLASES,
     'tamano_imagen': TAMANO_IMAGEN,
