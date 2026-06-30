@@ -5,10 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>♻️ EcoRecicla - Iniciar Sesión</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+<body class="auth-page bg-forest">
+    <!-- ==========================================================
+         NAVBAR
+         ========================================================== -->
+    <nav class="navbar-index">
+        <div class="navbar-index-container">
+            <!-- Logo y nombre -->
+            <div class="navbar-index-logo">
+                <i class="fas fa-recycle"></i>
+                <span>EcoRecicla</span>
+            </div>
+
+            <!-- Enlaces de navegación -->
+            <div class="navbar-index-links">
+                <a href="{{ url_for('index') }}" class="nav-index-btn nav-index-login">
+                    <i class="fas fa-home"></i> Inicio
+                </a>
+                <a href="{{ url_for('registro_page') }}" class="nav-index-btn nav-index-register">
+                    <i class="fas fa-user-plus"></i> Registrarse
+                </a>
+                <!-- Botón modo oscuro -->
+                <button id="themeToggleAuth" class="nav-index-theme-btn">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ==========================================================
+         CONTENEDOR PRINCIPAL
+         ========================================================== -->
     <div class="auth-container">
         <div class="auth-card">
             <div class="auth-header">
@@ -31,7 +62,44 @@
             </div>
         </div>
     </div>
+
+    <!-- ==========================================================
+         FOOTER
+         ========================================================== -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-logo"><i class="fas fa-recycle"></i><span>EcoRecicla</span></div>
+            <p>🌱 Reciclaje inteligente con IA - ¡Cada botella cuenta!</p>
+            <div class="footer-links">
+                <span><i class="fas fa-microchip"></i> IA: MobileNet</span>
+                <span><i class="fas fa-camera"></i> Escaneo automático</span>
+                <span><i class="fas fa-robot"></i> Detección en tiempo real</span>
+                <span><i class="fas fa-arduino"></i> Arduino compatible</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==========================================================
+         SCRIPTS
+         ========================================================== -->
     <script>
+        // ===== MODO OSCURO/CLARO =====
+        const themeToggle = document.getElementById('themeToggleAuth');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('light-mode');
+                const icon = themeToggle.querySelector('i');
+                if (document.body.classList.contains('light-mode')) {
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                } else {
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                }
+            });
+        }
+
+        // ===== LOGIN =====
         async function iniciarSesion() {
             const email = document.getElementById('login_email').value;
             const password = document.getElementById('login_password').value;

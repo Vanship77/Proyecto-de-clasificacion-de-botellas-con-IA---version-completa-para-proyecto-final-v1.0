@@ -6,11 +6,12 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.efficientnet import preprocess_input
 
-# Configuración
+# ========== CONFIGURACIÓN ==========
 CLASES = ['glass', 'metal', 'plastic']
 MAPEO_DISPLAY = {'glass': 'VIDRIO', 'metal': 'LATA', 'plastic': 'PLÁSTICO'}
 
 def cargar_modelo():
+    """Carga el modelo EfficientNet entrenado"""
     rutas = [
         'modelo_residuos.keras',
         'modelos_guardados/clasificador_efficientnet.keras'
@@ -29,7 +30,7 @@ def cargar_modelo():
     print("   Ejecuta: python entrenar_modelo.py")
     return None
 
-def predecir_archivo(ruta_imagen, modelo, umbral=0.75):
+def predecir_imagen(ruta_imagen, modelo, umbral=0.75):
     if not os.path.exists(ruta_imagen):
         return {'error': f'Archivo no encontrado: {ruta_imagen}'}
     
@@ -79,7 +80,7 @@ def main():
         print("   python predecir_ia.py [ruta_imagen]")
         print("   python predecir_ia.py [ruta_carpeta]")
         print("\n💡 Ejemplos:")
-        print("   python predecir_ia.py imagen.jpg")
+        print("   python predecir_ia.py botella.jpg")
         print("   python predecir_ia.py datasets/trashnet/glass/")
         return
     
@@ -96,7 +97,7 @@ def main():
         for archivo in os.listdir(ruta):
             if archivo.lower().endswith(('.png', '.jpg', '.jpeg')):
                 ruta_img = os.path.join(ruta, archivo)
-                resultado = predecir_archivo(ruta_img, modelo)
+                resultado = predecir_imagen(ruta_img, modelo)
                 
                 if 'error' in resultado:
                     print(f"{archivo}: ❌ ERROR")
@@ -106,7 +107,7 @@ def main():
         print(f"\n📷 Imagen: {os.path.basename(ruta)}")
         print("-" * 40)
         
-        resultado = predecir_archivo(ruta, modelo)
+        resultado = predecir_imagen(ruta, modelo)
         
         if 'error' in resultado:
             print(f"❌ Error: {resultado['error']}")

@@ -1,4 +1,4 @@
-// static/js/app.js - Basurero Inteligente con EfficientNetB0 (SIN PARPADEOS)
+// static/js/app.js - Basurero Inteligente con MobileNet
 
 let streamCamara = null;
 let detecciones = [];
@@ -555,7 +555,6 @@ async function tomarFotoAutomatica() {
                         }
                     }, 1200);
                 }
-                mostrarNotificacion('📷 No se detectó ninguna botella', 'warning');
             } else if (data.error === 'bottle_too_small') {
                 if (overlay) {
                     overlay.innerHTML = '🔍 BOTELLA MUY PEQUEÑA - Acércate más';
@@ -568,19 +567,6 @@ async function tomarFotoAutomatica() {
                     }, 1200);
                 }
                 mostrarNotificacion('📱 Acerca la botella a la cámara', 'warning');
-            } else if (data.error === 'baja_confianza') {
-                // 🔥 NUEVO: Manejar confianza baja
-                if (overlay) {
-                    overlay.innerHTML = `⚠️ ${data.mensaje}`;
-                    overlay.style.backgroundColor = 'rgba(241,196,15,0.85)';
-                    setTimeout(() => {
-                        if (overlay && isAutoDetecting) {
-                            overlay.innerHTML = '🟢 ESCANEANDO...';
-                            overlay.style.backgroundColor = 'rgba(0,0,0,0.6)';
-                        }
-                    }, 2000);
-                }
-                mostrarNotificacion(data.mensaje, 'warning');
             } else if (data.error) {
                 console.error('Error:', data.error);
                 if (overlay && isAutoDetecting) {

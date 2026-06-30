@@ -1,0 +1,8 @@
+names:
+- glass
+- metal
+- plastic
+nc: 3
+path: D:\scoped_dir2812_2118674518\proyectoBD1.1_efficientnet\proyectoBD\datasets\trashnet
+train: .
+val: .
