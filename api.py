@@ -112,105 +112,7 @@ def clasificar_botella(imagen_cv2):
     
     return clase, confianza, prediccion[0]
 
-# ========== FILTRO SUAVE PARA DETECTAR BOTELLAS (score, no gate duro) ========== 
-def es_botella(imagen_cv2):
-    """Devuelve un score 0..1 de probabilidad por forma (sin hard-reject).
-
-    Nota: antes se usaba un return True/False (gate duro). Eso era demasiado sensible
-    a iluminación/distancia/ángulo. Ahora combinamos heurísticas con pesos.
-    """
-    try:
-        h, w = imagen_cv2.shape[:2]
-        if h < 20 or w < 20:
-            return 0.0
-
-        escala = 0.5
-        img_proc = cv2.resize(imagen_cv2, (max(1, int(w * escala)), max(1, int(h * escala))))
-
-        gray = cv2.cvtColor(img_proc, cv2.COLOR_BGR2GRAY)
-        gray = cv2.equalizeHist(gray)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blurred, 50, 150)
-
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contours:
-            return 0.0
-
-        contorno = max(contours, key=cv2.contourArea)
-        area = cv2.contourArea(contorno)
-        area_imagen = float(img_proc.shape[0] * img_proc.shape[1])
-        if area_imagen <= 0:
-            return 0.0
-
-        x, y, w_rect, h_rect = cv2.boundingRect(contorno)
-        if w_rect <= 0 or h_rect <= 0:
-            return 0.0
-
-        porcentaje_area = area / area_imagen
-        aspecto = h_rect / w_rect if w_rect > 0 else 0
-
-        # 1) Área (ideal aprox 8%..40%)
-        s_area = 1.0
-        if porcentaje_area < 0.08:
-            s_area = np.clip(porcentaje_area / 0.08, 0, 1)
-        elif porcentaje_area > 0.40:
-            s_area = np.clip((0.70 - porcentaje_area) / 0.30, 0, 1)
-
-        # 2) Aspecto (botellas tienden a ser más altas que anchas)
-        # score triangular entre 1.0..2.5..5.0 (máximo cerca de 3)
-        if aspecto <= 1.0:
-            s_aspecto = 0.0
-        else:
-            s_aspecto = np.clip((aspecto - 1.0) / (2.5 - 1.0), 0, 1)
-            # caer si se va demasiado (manos cercanas o fondo)
-            if aspecto > 5.0:
-                s_aspecto *= 0.2
-
-        # 3) Circularidad (una mano/persona puede ser más “redonda” por proximidad)
-        perimetro = cv2.arcLength(contorno, True)
-        if perimetro <= 0:
-            s_circ = 0.0
-        else:
-            circularidad = 4 * np.pi * area / (perimetro * perimetro)
-            # circularidad alta (>=0.85) penaliza
-            s_circ = 1.0 - np.clip((circularidad - 0.6) / 0.25, 0, 1)
-
-        # 4) Contornos internos: manos suelen generar más “detalles”
-        _, contours_inner, _ = cv2.findContours(edges, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
-        internos_grandes = 0
-        if contours_inner:
-            internos_grandes = sum(1 for c in contours_inner if cv2.contourArea(c) > 150)
-        # penaliza si hay muchos internos
-        s_internos = 1.0 - np.clip((internos_grandes - 1) / 4.0, 0, 1)
-
-        # 5) Cuello: ancho superior no debería crecer demasiado vs ancho medio
-        puntos_superiores = [p[0][0] for p in contorno if p[0][1] < y + h_rect * 0.25]
-        s_cuello = 0.5
-        if len(puntos_superiores) > 10:
-            ancho_superior = float(max(puntos_superiores) - min(puntos_superiores))
-            ancho_medio = float(w_rect) * 0.7
-            # si ancho superior es significativamente mayor, penaliza
-            ratio = ancho_superior / (ancho_medio + 1e-6)
-            s_cuello = np.clip(1.0 - (ratio - 1.0) / 0.8, 0, 1)
-
-        # Combinar (pesos suman ~1)
-        score = (
-            0.30 * s_area +
-            0.30 * s_aspecto +
-            0.15 * s_circ +
-            0.15 * s_internos +
-            0.10 * s_cuello
-        )
-
-        # penalización si área es demasiado pequeña
-        if area < 250:
-            score *= 0.5
-
-        return float(np.clip(score, 0.0, 1.0))
-    except Exception:
-        return 0.0
-
-# ========== FUNCIÓN PARA ARDUINO ========== 
+# ========== FUNCIÓN PARA ARDUINO ==========
 def leer_arduino():
     try:
         arduino = serial.Serial(PUERTO_ARDUINO, VELOCIDAD_ARDUINO, timeout=1)
@@ -264,7 +166,7 @@ def api_login():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, nombre, email, contrasena, rol, puntos_totales
+            SELECT id, nombre, email, password, rol, puntos_totales
             FROM usuarios WHERE email = %s
         """, (email,))
         usuario = cursor.fetchone()
@@ -331,7 +233,7 @@ def api_registro():
             return jsonify({'error': 'El email ya está registrado'}), 400
         
         cursor.execute("""
-            INSERT INTO usuarios (nombre, email, contrasena, rol, puntos_totales)
+            INSERT INTO usuarios (nombre, email, password, rol, puntos_totales)
             VALUES (%s, %s, %s, 'usuario', 0) RETURNING id
         """, (nombre, email, contrasena_hash))
         
@@ -449,7 +351,7 @@ def crear_usuario():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO usuarios (nombre, email, contrasena, rol, puntos_totales)
+            INSERT INTO usuarios (nombre, email, password, rol, puntos_totales)
             VALUES (%s, %s, %s, %s, 0) RETURNING id, puntos_totales
         """, (nombre, email, contrasena_hash, rol))
         
@@ -645,39 +547,6 @@ def clasificar_webcam():
         
         if img_cv2 is None:
             return jsonify({'error': 'No se pudo procesar'}), 400
-        
-        # ========== FILTRO DE FORMA MEJORADO ==========
-        # Score de forma (suave, no gate duro)
-        score_forma = es_botella(img_cv2)
-        if modelo_efficientnet is None:
-            return jsonify({'error': 'Modelo no cargado'}), 500
-
-        clase, confianza, _ = clasificar_botella(img_cv2)
-        if clase is None:
-            return jsonify({
-                'status': 'error',
-                'error': 'no_bottle',
-                'mensaje': 'No se detectó ninguna botella'
-            }), 200
-
-        # Combinar evidencia de forma + IA
-        # confianza viene en % (0..100)
-        final_score = 0.7 * (confianza / 100.0) + 0.3 * float(score_forma)
-        # Umbral (ajustable)
-        if final_score < 0.55:
-            return jsonify({
-                'status': 'error',
-                'error': 'no_bottle',
-                'mensaje': 'No se detectó una botella con suficiente evidencia'
-            }), 200
-
-        if confianza < 50:
-            return jsonify({
-                'status': 'error',
-                'error': 'baja_confianza',
-                'mensaje': f'⚠️ Confianza baja: {confianza:.1f}%',
-                'confianza': round(confianza, 2)
-            }), 200
         
         if modelo_efficientnet is None:
             return jsonify({'error': 'Modelo no cargado'}), 500
